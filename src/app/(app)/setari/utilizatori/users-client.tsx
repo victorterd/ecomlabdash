@@ -47,7 +47,7 @@ export function RoleSelect({ userId, role, disabled }: { userId: string; role: U
       }
     >
       <SelectTrigger size="sm" className="w-36">
-        <SelectValue />
+        <SelectValue>{ROLE_LABELS[role]}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {(Object.keys(ROLE_LABELS) as UserRole[]).map((r) => (

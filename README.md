@@ -12,7 +12,7 @@ Documente:
 | Etapă | Conținut | Stare |
 |---|---|---|
 | 1 | Setup, autentificare, layout, temă light/dark, Setări de bază | ✅ |
-| 2 | Lead-uri: tabel, taburi pe status, follow-up automat, import CSV/Excel | ⏳ |
+| 2 | Lead-uri: tabel, taburi pe status, follow-up automat, import CSV/Excel | ✅ |
 | 3 | Proiecte, etape, tranșe, costuri, comision, actori, calendar | ⏳ |
 | 4 | Cashflow, plăți de făcut, taxe pe lună, forecast 12 luni | ⏳ |
 | 5 | Dashboard, remindere in-app, email zilnic, push | ⏳ |
@@ -31,6 +31,15 @@ Documente:
 4. **Authentication → Users → Add user → Create new user**: emailul și parola ta, bifează **Auto Confirm User**.
    **Primul cont creat devine automat admin.**
 5. **Project Settings → API Keys**: copiază **Project URL**, cheia **publishable** și cheia **secret** (service role).
+
+### Actualizare la o etapă nouă
+
+Când apare o migrație nouă în `supabase/migrations/`, rulează doar fișierul nou în **SQL Editor** (în ordinea numelor):
+
+| Fișier | Etapa |
+|---|---|
+| `20261009000001_core.sql` | 1 |
+| `20261010000002_leads.sql` | 2 |
 
 ### 2. Rulare locală
 

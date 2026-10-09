@@ -4,12 +4,17 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { requireProfile } from "@/lib/auth";
+import { todayISO } from "@/lib/format";
+import { countDueFollowUps } from "@/lib/leads/queries";
 import Link from "next/link";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const profile = await requireProfile();
-  // Badge-urile de remindere (follow-up-uri restante etc.) se adaugă în Etapele 2 și 5.
+  // Badge-uri în sidebar: follow-up-uri de azi și restante (Etapa 5 adaugă restul reminderelor).
   const badges: Record<string, number> = {};
+  if (profile.role === "admin" || profile.role === "setter") {
+    badges["/leaduri"] = await countDueFollowUps(todayISO());
+  }
 
   return (
     <div className="flex min-h-dvh">

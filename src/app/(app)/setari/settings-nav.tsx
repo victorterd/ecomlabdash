@@ -11,6 +11,7 @@ const ITEMS = [
   { href: "/setari/financiar", label: "Financiar" },
   { href: "/setari/notificari", label: "Notificări" },
   { href: "/setari/utilizatori", label: "Utilizatori" },
+  { href: "/setari/date-test", label: "Date de test" },
 ];
 
 export function SettingsNav() {

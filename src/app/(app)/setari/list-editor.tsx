@@ -253,7 +253,7 @@ function FieldCell({ field, row, onChange }: { field: ListField; row: ListRow; o
       return (
         <Select value={value ? String(value) : NONE} onValueChange={(v) => onChange(v === NONE ? null : v)}>
           <SelectTrigger size="sm" className="min-w-44">
-            <SelectValue placeholder={field.placeholder} />
+            <SelectValue>{field.options.find((o) => o.value === value)?.label ?? field.placeholder ?? "—"}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={NONE}>{field.placeholder ?? "—"}</SelectItem>
