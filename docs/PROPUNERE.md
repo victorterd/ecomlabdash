@@ -1,7 +1,6 @@
 # Ecomlab CRM — Propunere schemă bază de date și structură pagini
 
-> Etapa 0. Nimic nu se construiește până nu confirmi (sau corectezi) documentul ăsta.
-> Întrebările deschise sunt la final (§7).
+> Etapa 0, confirmată. Deciziile sunt în §7.
 
 ---
 
@@ -180,7 +179,7 @@ Reguli de afișare (calculate, nu stocate):
 
 Comportamente automate:
 - **Comision setter**: trigger pe `project_finance` creează/actualizează o tranzacție `kind = commission`, `amount = contract_value × pct / 100`, cât timp e `planned`. Dacă ai marcat-o plătită sau ai editat suma manual (flag `manual_override`), nu o mai rescrie.
-- **Retainer**: la salvare, se generează câte o tranzacție `kind = retainer`, `planned`, pentru fiecare lună din perioadă (upsert pe `project_id + period_month`; lunile scoase din perioadă și încă planificate se șterg).
+- **Retainer**: fără generare automată (decizia 7). Tranșele lunare se adaugă manual pe proiect.
 - **Recurente**: tabela **`recurring_expenses`** (`description`, `amount`, `category_id`, `scope`, `day_of_month`, `start_month`, `end_month null`, `active`). Jobul zilnic menține generate tranzacțiile planificate pentru următoarele 12 luni (idempotent).
 
 **`forecast_entries`** — `month date` (prima zi), `type` (`income`/`expense`), `category_id null` (la venituri null), `amount`; unic (`month`,`type`,`category_id`).
@@ -231,6 +230,7 @@ Cron-ul folosește `service_role` (ocolește RLS) doar pe server.
   ├─ /financiar/categorii*     defalcare cheltuieli pe categorii × luni
   ├─ /financiar/forecast*      grilă 12 luni: Forecast vs Planificat vs Realizat + sold proiectat
   └─ /financiar/recurente*     cheltuieli recurente lunare
+  └─ /financiar/plati*         plăți de făcut: costuri de proiect și comisioane planificate
 /setari                        Lead-uri · Proiecte · Financiar* · Notificări · Aspect · Utilizatori (pregătit) · Date de test
 /api/cron/tick                 apelat periodic (vezi §4)
 /api/push/subscribe            salvare abonament Web Push
@@ -264,18 +264,18 @@ Migrațiile SQL stau în `supabase/migrations/`, seed-ul în `supabase/seed.sql`
 
 ## 6. Design
 
-Nu am putut accesa ecomlab.ro din mediul în care lucrez (rețeaua îmi blochează domeniul). Construiesc cu tokeni de culoare (variabile CSS shadcn), deci schimbarea paletei = editarea a ~6 valori într-un singur fișier. Am nevoie de la tine de culori + logo (vezi întrebarea 1).
+Culorile vin din logo: verde **#1CDB10** (accent/primar) și negru **#111111** (text). Fonturi: Outfit pentru titluri (geometric, apropiat de logo) și Inter pentru restul interfeței (lizibil în tabele dense). Toate culorile sunt tokeni în `src/app/globals.css`.
 
 ---
 
-## 7. Întrebări deschise (răspunde doar unde nu ești de acord cu varianta implicită)
+## 7. Decizii confirmate (09.10.2026)
 
-1. **Culori / logo / font**: trimite-mi codurile hex (principală, accent) și logo-ul (SVG/PNG) — sau un screenshot al site-ului. *Implicit: pornesc cu o paletă neutră și o înlocuiesc când le am.*
-2. **Ora follow-up-ului**: lead-ul are opțional și o oră de follow-up (pentru push)? *Implicit: da, opțional; fără oră → reminder la 10:00.*
-3. **Stadiile proiectului**: le fac configurabile din Setări ca statusurile lead? *Implicit: da (aceeași mecanică).*
-4. **Încadrarea pe lună în cashflow**: o tranzacție planificată stă în luna scadenței, iar după ce e realizată se mută în luna datei efective. *Implicit: da.*
-5. **Tariful actorilor** e vizibil și pentru rolul `productie` (util la casting)? *Implicit: da, tariful da; costurile de proiect și valoarea contractului nu.*
-6. **Comisionul setter-ului** se plătește când se încasează banii de la client (planificat la data primei tranșe) sau la semnare? *Implicit: planificat la data primei tranșe; dacă nu există tranșe, la data de început.*
-7. **Retainer**: valoarea contractului = sumă lunară × număr de luni (pentru comision 15%)? *Implicit: da.*
-8. **Cheltuieli personale în „Profit contabil”**: le scad conform formulei tale (deci reduc baza de impozitare). Confirm că e intenționat. *Implicit: exact cum ai scris.*
-9. **Setter-ul (viitor)** vede toate lead-urile sau doar pe cele sunate de el? *Implicit: toate; ușor de restrâns ulterior.*
+1. **Design**: logo primit; culorile de mai sus.
+2. **Ora follow-up-ului**: implicit 10:00 (din Setări), editabilă pe fiecare lead.
+3. **Stadiile proiectului**: configurabile din Setări.
+4. **Cashflow**: o tranzacție planificată stă în luna scadenței; după ce e realizată, trece în luna datei efective.
+5. **Roluri**: deocamdată nu se folosesc (doar uz intern). Arhitectura (rol pe profil + RLS) rămâne pregătită.
+6. **Comision setter**: planificat la data primei tranșe. În Financiar există o pagină **Plăți de făcut** (costuri și comisioane planificate).
+7. **Retainer**: fără generare automată. Tipul „Retainer” rămâne pe proiect, iar detaliile (tranșe lunare etc.) le completezi manual când se vinde unul.
+8. **Cheltuieli personale**: se scad în „Profit contabil” exact după formulă. Sunt cheltuieli pe firmă din afara business-ului, iar calculul arată cât ai de plătit.
+9. **Setter**: vizibilitatea lead-urilor se decide pe viitor; acum vede totul doar adminul.

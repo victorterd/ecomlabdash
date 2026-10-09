@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Paleta Ecomlab — verde din logo (#1CDB10) + negru (#111111).
+ * Toate culorile aplicației vin din tokenii de mai jos.
+ */
+:root {
+  --radius: 0.6rem;
+
+  --background: #ffffff;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --popover: #ffffff;
+  --popover-foreground: #111111;
+
+  --primary: #1cdb10;
+  --primary-foreground: #0b2e08;
+  --brand: #1cdb10;
+  --brand-strong: #13a80a;
+
+  --secondary: #f4f5f4;
+  --secondary-foreground: #111111;
+  --muted: #f4f5f4;
+  --muted-foreground: #5f6660;
+  --accent: #ecfbe9;
+  --accent-foreground: #0f3d0b;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-soft: #fef6e3;
+  --danger-soft: #fdecec;
+  --success: #16a34a;
+
+  --border: #e5e8e5;
+  --input: #dfe3df;
+  --ring: #1cdb10;
+
+  --sidebar: #fafbfa;
+  --sidebar-foreground: #111111;
+  --sidebar-accent: #ecfbe9;
+  --sidebar-accent-foreground: #0f3d0b;
+  --sidebar-border: #e8ebe8;
+}
+
+.dark {
+  --background: #0c0d0c;
+  --foreground: #f2f3f2;
+  --card: #141614;
+  --card-foreground: #f2f3f2;
+  --popover: #161816;
+  --popover-foreground: #f2f3f2;
+
+  --primary: #1cdb10;
+  --primary-foreground: #061a04;
+  --brand: #1cdb10;
+  --brand-strong: #3ee433;
+
+  --secondary: #1d201d;
+  --secondary-foreground: #f2f3f2;
+  --muted: #1b1d1b;
+  --muted-foreground: #9aa29b;
+  --accent: #15260f;
+  --accent-foreground: #b9f5b4;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --warning: #fbbf24;
+  --warning-soft: #2b2310;
+  --danger-soft: #2d1414;
+  --success: #22c55e;
+
+  --border: #262a26;
+  --input: #2e332e;
+  --ring: #1cdb10;
+
+  --sidebar: #101210;
+  --sidebar-foreground: #f2f3f2;
+  --sidebar-accent: #15260f;
+  --sidebar-accent-foreground: #b9f5b4;
+  --sidebar-border: #222622;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit), var(--font-inter), ui-sans-serif, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
