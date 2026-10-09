@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
+import { MigrationNeeded } from "@/components/layout/migration-needed";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireProfile } from "@/lib/auth";
-import { fetchLeadLists } from "@/lib/leads/queries";
+import { fetchLeadLists, leadsTableExists } from "@/lib/leads/queries";
 import { ImportWizard } from "./import-wizard";
 
 export const metadata = { title: "Import lead-uri" };
@@ -11,6 +12,7 @@ export const metadata = { title: "Import lead-uri" };
 export default async function ImportPage() {
   const profile = await requireProfile();
   if (profile.role === "productie") redirect("/");
+  if (!(await leadsTableExists())) return <MigrationNeeded title="Import lead-uri" file="20261010000002_leads.sql" />;
   const { statuses, sources } = await fetchLeadLists();
 
   return (

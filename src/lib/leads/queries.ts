@@ -1,11 +1,13 @@
 import "server-only";
+import { isMissingRelation } from "@/lib/db-errors";
 import { createClient } from "@/lib/supabase/server";
 import type { LeadSource, LeadStatus } from "@/lib/types";
 import { LEAD_COLUMNS, type Lead } from "./types";
 
 const PAGE = 1000; // limita implicită de rânduri per request în Supabase
 
-export async function fetchAllLeads(): Promise<Lead[]> {
+/** `null` dacă tabela de lead-uri nu există încă (migrația Etapei 2 nerulată). */
+export async function fetchAllLeads(): Promise<Lead[] | null> {
   const supabase = await createClient();
   const all: Lead[] = [];
   for (let from = 0; ; from += PAGE) {
@@ -16,7 +18,10 @@ export async function fetchAllLeads(): Promise<Lead[]> {
       .order("id")
       .range(from, from + PAGE - 1)
       .returns<Lead[]>();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (isMissingRelation(error)) return null;
+      throw new Error(error.message);
+    }
     all.push(...data);
     if (data.length < PAGE) break;
   }
@@ -41,4 +46,10 @@ export async function countDueFollowUps(today: string): Promise<number> {
   if (closedIds.length) query = query.not("status_id", "in", `(${closedIds.join(",")})`);
   const { count } = await query;
   return count ?? 0;
+}
+
+export async function leadsTableExists(): Promise<boolean> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("leads").select("id", { head: true, count: "exact" }).limit(1);
+  return !isMissingRelation(error);
 }
