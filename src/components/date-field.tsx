@@ -18,8 +18,11 @@ export function DateField({
   clearable = true,
   autoFocus,
   id,
+  name,
   "aria-label": ariaLabel,
 }: {
+  /** Pentru formulare clasice: trimite valoarea ISO într-un input ascuns. */
+  name?: string;
   value: string | null;
   onChange: (value: string | null) => void;
   className?: string;
@@ -65,6 +68,7 @@ export function DateField({
         className,
       )}
     >
+      {name ? <input type="hidden" name={name} value={value ?? ""} /> : null}
       <input
         id={id}
         aria-label={ariaLabel}

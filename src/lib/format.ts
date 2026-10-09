@@ -105,3 +105,10 @@ export function parseTimeInput(value: string): string | null | undefined {
   if (h > 23 || m > 59) return undefined;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
+
+const amountFormatter = new Intl.NumberFormat("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Sumă fără „RON” (pentru tabele cu multe coloane): 12345.5 → „12.345,50”. */
+export function formatAmount(value: Money): string {
+  return amountFormatter.format(toDecimal(value).toNumber());
+}

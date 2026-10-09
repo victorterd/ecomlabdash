@@ -92,6 +92,7 @@ export async function generateTestData(): Promise<Result> {
   if (error) return { ok: false, error: error.message };
 
   const production = await seedProduction(today);
+  await seedFinance(today);
   revalidatePath("/", "layout");
   if (!production.ok) return { ok: true, message: `Am adăugat ${leads.length} lead-uri de test. Proiecte: ${production.error}` };
   return {
@@ -108,6 +109,8 @@ export async function deleteTestData(): Promise<Result> {
   await supabase.from("shoots").delete().eq("is_seed", true);
   await supabase.from("transactions").delete().eq("is_seed", true);
   const actors = await supabase.from("actors").delete({ count: "exact" }).eq("is_seed", true);
+  await supabase.from("recurring_expenses").delete().eq("is_seed", true);
+  await supabase.from("forecast_entries").delete().eq("is_seed", true);
   const { error, count } = await supabase.from("leads").delete({ count: "exact" }).eq("is_seed", true);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
@@ -323,4 +326,59 @@ async function seedProduction(today: Date): Promise<{ ok: true; projects: number
   }
 
   return { ok: true, projects: PROJECTS.length, actors: actors.length };
+}
+
+// ---------------------------------------------------------------------
+// Financiar: cheltuieli manuale, recurente, forecast
+// ---------------------------------------------------------------------
+
+async function seedFinance(today: Date) {
+  const supabase = await createClient();
+  const day = (offset: number) => format(addDays(today, offset), "yyyy-MM-dd");
+  const { data: categories } = await supabase.from("expense_categories").select("id, name");
+  const cat = (pattern: RegExp) => categories?.find((c) => pattern.test(c.name))?.id ?? categories?.[0]?.id ?? null;
+  const ads = cat(/ads/i);
+  const soft = cat(/soft/i);
+  const accounting = cat(/contab/i);
+
+  const manual = [
+    { amount: 1500, offset: -40, category: ads, description: "TikTok Ads", realized: true },
+    { amount: 1800, offset: -10, category: ads, description: "TikTok Ads", realized: true },
+    { amount: 2000, offset: 20, category: ads, description: "TikTok Ads", realized: false },
+    { amount: 450, offset: -35, category: soft, description: "CapCut Pro + Canva + Google Workspace", realized: true },
+    { amount: 450, offset: -5, category: soft, description: "CapCut Pro + Canva + Google Workspace", realized: true },
+    { amount: 1200, offset: -15, category: soft, description: "Laptop rate (personal pe firmă)", realized: true, personal: true },
+  ].map((t) => ({
+    type: "expense",
+    kind: "manual",
+    amount: t.amount,
+    due_date: day(t.offset),
+    status: t.realized ? "realized" : "planned",
+    realized_date: t.realized ? day(t.offset) : null,
+    category_id: t.category,
+    scope: t.personal ? "personal" : "business",
+    description: t.description,
+    is_seed: true,
+  }));
+  await supabase.from("transactions").insert(manual);
+
+  await supabase.from("recurring_expenses").insert({
+    description: "Contabilitate",
+    amount: 600,
+    category_id: accounting,
+    day_of_month: 25,
+    start_month: format(today, "yyyy-MM-01"),
+    is_seed: true,
+  });
+  await supabase.rpc("generate_recurring_transactions", { p_months: 12 });
+
+  const forecast = Array.from({ length: 6 }, (_, i) => {
+    const month = format(new Date(today.getFullYear(), today.getMonth() + i, 1), "yyyy-MM-dd");
+    return [
+      { month, type: "income", category_id: null, amount: 25000 + i * 2000, is_seed: true },
+      { month, type: "expense", category_id: ads, amount: 2000, is_seed: true },
+      { month, type: "expense", category_id: cat(/produc/i), amount: 8000 + i * 500, is_seed: true },
+    ];
+  }).flat();
+  await supabase.from("forecast_entries").upsert(forecast, { onConflict: "month,type,category_id", ignoreDuplicates: true });
 }

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateField } from "@/components/date-field";
 import type { ActionResult } from "./actions";
 
 export type FormField = {
@@ -51,14 +52,19 @@ export function SettingsForm({
           <div key={f.name} className="grid content-start gap-1.5">
             <Label htmlFor={f.name}>{f.label}</Label>
             <div className="flex items-center gap-2">
-              <Input
-                id={f.name}
-                name={f.name}
-                type={f.type === "number" ? "text" : (f.type ?? "text")}
-                inputMode={f.inputMode ?? (f.type === "number" ? "decimal" : undefined)}
-                defaultValue={f.defaultValue}
-                required
-              />
+              {f.type === "date" ? (
+                <SettingsDateField id={f.name} name={f.name} defaultValue={f.defaultValue} onChange={() => setDirty(true)} />
+              ) : (
+                <Input
+                  id={f.name}
+                  name={f.name}
+                  type={f.type === "number" || f.type === "time" ? "text" : (f.type ?? "text")}
+                  inputMode={f.inputMode ?? (f.type === "number" ? "decimal" : f.type === "time" ? "numeric" : undefined)}
+                  placeholder={f.type === "time" ? "hh:mm" : undefined}
+                  defaultValue={f.defaultValue}
+                  required
+                />
+              )}
               {f.suffix ? <span className="shrink-0 text-sm text-muted-foreground">{f.suffix}</span> : null}
             </div>
             {f.help ? <p className="text-xs text-muted-foreground">{f.help}</p> : null}
@@ -72,5 +78,22 @@ export function SettingsForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function SettingsDateField({ id, name, defaultValue, onChange }: { id: string; name: string; defaultValue: string; onChange: () => void }) {
+  const [value, setValue] = useState<string | null>(defaultValue || null);
+  return (
+    <DateField
+      id={id}
+      name={name}
+      value={value}
+      clearable={false}
+      className="w-full"
+      onChange={(v) => {
+        setValue(v);
+        onChange();
+      }}
+    />
   );
 }

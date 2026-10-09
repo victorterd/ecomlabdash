@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseMoneyInput } from "./format";
+import { parseMoneyInput, parseTimeInput } from "./format";
 
 /** Sumă de bani introdusă de utilizator → string zecimal cu 2 zecimale. */
 export const moneyInput = z.union([z.string(), z.number()]).transform((v, ctx) => {
@@ -17,4 +17,8 @@ export const percentInput = z.preprocess(
   z.coerce.number({ message: "Procent invalid" }).min(0, "Minim 0%").max(100, "Maxim 100%"),
 );
 
-export const timeInput = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Oră invalidă");
+/** Oră în format 24h; acceptă „9”, „930”, „9:30”, „09.30”. */
+export const timeInput = z.preprocess(
+  (v) => (typeof v === "string" ? (parseTimeInput(v) ?? v) : v),
+  z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Oră invalidă (ex. 09:30)"),
+);
