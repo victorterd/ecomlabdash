@@ -53,3 +53,15 @@ export async function leadsTableExists(): Promise<boolean> {
   const { error } = await supabase.from("leads").select("id", { head: true, count: "exact" }).limit(1);
   return !isMissingRelation(error);
 }
+
+/** lead_id → id proiect (pentru „Vezi proiectul” pe lead-urile câștigate). */
+export async function fetchLeadProjects(): Promise<Record<string, string>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, lead_id")
+    .not("lead_id", "is", null)
+    .returns<{ id: string; lead_id: string }[]>();
+  if (error) return {};
+  return Object.fromEntries((data ?? []).map((p) => [p.lead_id, p.id]));
+}

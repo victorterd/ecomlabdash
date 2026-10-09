@@ -13,7 +13,7 @@ Documente:
 |---|---|---|
 | 1 | Setup, autentificare, layout, temă light/dark, Setări de bază | ✅ |
 | 2 | Lead-uri: tabel, taburi pe status, follow-up automat, import CSV/Excel | ✅ |
-| 3 | Proiecte, etape, tranșe, costuri, comision, actori, calendar | ⏳ |
+| 3 | Proiecte, etape, tranșe, costuri, comision, actori, calendar | ✅ |
 | 4 | Cashflow, plăți de făcut, taxe pe lună, forecast 12 luni | ⏳ |
 | 5 | Dashboard, remindere in-app, email zilnic, push | ⏳ |
 | 6 | Deploy Vercel + ghid complet Supabase/Resend | ⏳ |
@@ -40,6 +40,7 @@ Când apare o migrație nouă în `supabase/migrations/`, rulează doar fișieru
 |---|---|
 | `20261009000001_core.sql` | 1 |
 | `20261010000002_leads.sql` | 2 |
+| `20261011000003_projects.sql` | 3 |
 
 ### 2. Rulare locală
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { ArrowRightIcon, ClapperboardIcon, ExternalLinkIcon, MailIcon, PhoneIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { DateField } from "@/components/date-field";
@@ -10,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { formatPhone, websiteHref } from "@/lib/leads/normalize";
 import type { Lead, StatusHistoryEntry } from "@/lib/leads/types";
@@ -26,7 +26,11 @@ export function LeadSheet({
   onClose,
   onSave,
   onDeleted,
+  leadProjects,
+  canCreateProject,
 }: {
+  leadProjects: Record<string, string>;
+  canCreateProject: boolean;
   lead: Lead | null;
   statuses: LeadStatus[];
   sources: LeadSource[];
@@ -47,6 +51,8 @@ export function LeadSheet({
             today={today}
             onSave={onSave}
             onDeleted={onDeleted}
+            projectId={leadProjects[lead.id] ?? null}
+            canCreateProject={canCreateProject}
           />
         ) : (
           <SheetTitle className="sr-only">Lead</SheetTitle>
@@ -63,7 +69,11 @@ function LeadDetails({
   today,
   onSave,
   onDeleted,
+  projectId,
+  canCreateProject,
 }: {
+  projectId: string | null;
+  canCreateProject: boolean;
   lead: Lead;
   statuses: LeadStatus[];
   sources: LeadSource[];
@@ -151,22 +161,28 @@ function LeadDetails({
           </div>
         </div>
 
-        {status?.is_won ? (
+        {projectId ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-brand/40 bg-accent px-3 py-2.5">
+            <p className="text-sm font-medium text-accent-foreground">Are proiect creat.</p>
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/proiecte/${projectId}`}>
+                <ClapperboardIcon /> Vezi proiectul
+              </Link>
+            </Button>
+          </div>
+        ) : status?.is_won ? (
           <div className="flex items-center justify-between gap-3 rounded-lg border border-brand/40 bg-accent px-3 py-2.5">
             <div className="text-sm">
               <p className="font-medium text-accent-foreground">Lead câștigat</p>
               <p className="text-xs text-muted-foreground">Creează proiectul cu datele clientului precompletate.</p>
             </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button size="sm" disabled>
-                    <ClapperboardIcon /> Creează proiect
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Disponibil în Etapa 3 (Proiecte)</TooltipContent>
-            </Tooltip>
+            {canCreateProject ? (
+              <Button size="sm" asChild>
+                <Link href={`/proiecte/nou?lead=${lead.id}`}>
+                  <ClapperboardIcon /> Creează proiect
+                </Link>
+              </Button>
+            ) : null}
           </div>
         ) : null}
 

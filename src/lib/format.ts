@@ -93,3 +93,15 @@ export function parseMoneyInput(value: string): string | null {
   if (!/^-?\d+(\.\d{1,2})?$/.test(cleaned)) return null;
   return new Decimal(cleaned).toFixed(2);
 }
+
+/** „9”, „930”, „9:30”, „09.30” → „09:30”; „” → null; invalid → undefined. */
+export function parseTimeInput(value: string): string | null | undefined {
+  const raw = value.trim();
+  if (!raw) return null;
+  const match = raw.match(/^(\d{1,2})(?:[:.]?(\d{2}))?$/);
+  if (!match) return undefined;
+  const h = Number(match[1]);
+  const m = match[2] ? Number(match[2]) : 0;
+  if (h > 23 || m > 59) return undefined;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}

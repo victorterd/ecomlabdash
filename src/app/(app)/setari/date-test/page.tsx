@@ -6,7 +6,10 @@ export const metadata = { title: "Date de test" };
 
 export default async function TestDataPage() {
   const supabase = await createClient();
-  const { count } = await supabase.from("leads").select("id", { count: "exact", head: true }).eq("is_seed", true);
+  const [{ count }, { count: projectCount }] = await Promise.all([
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("is_seed", true),
+    supabase.from("projects").select("id", { count: "exact", head: true }).eq("is_seed", true),
+  ]);
 
   return (
     <SettingsSection
@@ -15,10 +18,9 @@ export default async function TestDataPage() {
     >
       <div className="grid gap-3 rounded-lg border p-4">
         <p className="text-sm">
-          Acum există <b>{count ?? 0}</b> lead-uri de test.
-          <span className="text-muted-foreground"> Proiectele, actorii și tranzacțiile de test se adaugă în etapele următoare.</span>
+          Acum există <b>{count ?? 0}</b> lead-uri și <b>{projectCount ?? 0}</b> proiecte de test (cu actori, filmări, tranșe și costuri).
         </p>
-        <TestDataButtons hasData={(count ?? 0) > 0} />
+        <TestDataButtons hasData={(count ?? 0) + (projectCount ?? 0) > 0} />
       </div>
     </SettingsSection>
   );

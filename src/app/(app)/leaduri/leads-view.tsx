@@ -39,7 +39,11 @@ export function LeadsView({
   sources,
   today,
   weekEnd,
+  leadProjects,
+  canCreateProject,
 }: {
+  leadProjects: Record<string, string>;
+  canCreateProject: boolean;
   initialLeads: Lead[];
   statuses: LeadStatus[];
   sources: LeadSource[];
@@ -61,7 +65,8 @@ export function LeadsView({
   });
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
   const [page, setPage] = useState(0);
-  const [openId, setOpenId] = useState<string | null>(null);
+  // ?lead=<id> deschide direct fișa (link din calendar / proiect).
+  const [openId, setOpenId] = useState<string | null>(() => searchParams.get("lead"));
   const [addOpen, setAddOpen] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -457,7 +462,16 @@ export function LeadsView({
         statuses={statuses}
         sources={sources}
         today={today}
-        onClose={() => setOpenId(null)}
+        leadProjects={leadProjects}
+        canCreateProject={canCreateProject}
+        onClose={() => {
+          setOpenId(null);
+          if (searchParams.get("lead")) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("lead");
+            window.history.replaceState(null, "", url);
+          }
+        }}
         onSave={save}
         onDeleted={(id) => {
           setLeads((current) => current.filter((l) => l.id !== id));
