@@ -1,23 +1,30 @@
 import { Logo } from "@/components/layout/logo";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { ServiceWorkerRegister } from "@/components/layout/sw-register";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { requireProfile } from "@/lib/auth";
 import { todayISO } from "@/lib/format";
 import { countDueFollowUps } from "@/lib/leads/queries";
+import { countDue } from "@/lib/reminders/collect";
+import { getMyReminders } from "@/lib/reminders/server";
 import Link from "next/link";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const profile = await requireProfile();
   // Badge-uri în sidebar: follow-up-uri de azi și restante (Etapa 5 adaugă restul reminderelor).
   const badges: Record<string, number> = {};
-  if (profile.role === "admin" || profile.role === "setter") {
-    badges["/leaduri"] = await countDueFollowUps(todayISO());
-  }
+  const [reminders, dueFollowUps] = await Promise.all([
+    getMyReminders(),
+    profile.role === "admin" || profile.role === "setter" ? countDueFollowUps(todayISO()) : 0,
+  ]);
+  badges["/"] = countDue(reminders);
+  if (dueFollowUps) badges["/leaduri"] = dueFollowUps;
 
   return (
     <div className="flex min-h-dvh">
+      <ServiceWorkerRegister />
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-3 lg:flex">
         <Link href="/" className="px-3 pt-2 pb-6">
           <Logo className="h-5" />

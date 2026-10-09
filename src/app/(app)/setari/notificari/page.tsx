@@ -6,6 +6,8 @@ import { saveAppSettings } from "../actions";
 import { SettingsSection } from "../section";
 import { SettingsForm } from "../settings-form";
 import { NotificationToggles } from "./notification-toggles";
+import { EmailTools, PushDevice } from "./delivery-tools";
+import { pushConfigured } from "@/lib/notifications/push";
 
 export const metadata = { title: "Notificări" };
 
@@ -32,10 +34,18 @@ export default async function NotificationSettingsPage() {
               label: "Ora trimiterii (ora României)",
               type: "time",
               defaultValue: formatTime(settings.daily_email_time),
-              help: "Trimiterea efectivă pornește în Etapa 5.",
+              help: "Emailul pleacă la primul declanșator al cronului după ora asta (vezi README → Remindere).",
             },
           ]}
         />
+      </SettingsSection>
+
+      <SettingsSection title="Email" description="Previzualizează sau trimite-ți acum emailul de dimineață, cu datele de azi.">
+        <EmailTools configured={Boolean(process.env.RESEND_API_KEY)} />
+      </SettingsSection>
+
+      <SettingsSection title="Notificări push pe telefon" description="Aceleași remindere, plus o notificare la ora fiecărui follow-up.">
+        <PushDevice serverConfigured={pushConfigured()} />
       </SettingsSection>
 
       <SettingsSection

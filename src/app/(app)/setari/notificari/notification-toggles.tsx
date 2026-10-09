@@ -12,7 +12,7 @@ type BoolKey = Exclude<keyof NotificationPrefs, "user_id" | "email_to">;
 
 const CHANNELS: { key: BoolKey; label: string; help: string }[] = [
   { key: "email_daily", label: "Email zilnic", help: "Un singur email dimineața cu tot ce ai de făcut." },
-  { key: "push_enabled", label: "Notificări push pe telefon", help: "Activezi telefonul după instalarea aplicației (Etapa 5)." },
+  { key: "push_enabled", label: "Notificări push pe telefon", help: "Pe fiecare dispozitiv le activezi din secțiunea de mai sus." },
 ];
 
 const EVENTS: { key: BoolKey; label: string }[] = [

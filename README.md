@@ -15,7 +15,7 @@ Documente:
 | 2 | Lead-uri: tabel, taburi pe status, follow-up automat, import CSV/Excel | ✅ |
 | 3 | Proiecte, etape, tranșe, costuri, comision, actori, calendar | ✅ |
 | 4 | Cashflow, plăți de făcut, taxe pe lună, forecast 12 luni | ✅ |
-| 5 | Dashboard, remindere in-app, email zilnic, push | ⏳ |
+| 5 | Dashboard, remindere in-app, email zilnic, push | ✅ |
 | 6 | Deploy Vercel + ghid complet Supabase/Resend | ⏳ |
 
 ---
@@ -42,6 +42,20 @@ Când apare o migrație nouă în `supabase/migrations/`, rulează doar fișieru
 | `20261010000002_leads.sql` | 2 |
 | `20261011000003_projects.sql` | 3 |
 | `20261012000004_finance.sql` | 4 |
+
+### Remindere și notificări (Etapa 5)
+
+Dashboard-ul și badge-urile din sidebar merg fără nicio configurare. Pentru **email** și **push** adaugi variabile de mediu în **Vercel → Settings → Environment Variables**, apoi faci **Redeploy**.
+
+1. **Adresa aplicației**: `NEXT_PUBLIC_SITE_URL` = linkul de la Vercel, ex. `https://ecomlabdash.vercel.app` (pentru linkurile din email).
+2. **Secretul pentru cron**: `CRON_SECRET` = un șir lung, aleator (minim 32 de caractere). Vercel îl trimite automat la cronul zilnic.
+3. **Email (Resend)**:
+   - cont pe [resend.com](https://resend.com) → **API Keys → Create API Key** → `RESEND_API_KEY`;
+   - `EMAIL_FROM`: fără domeniu verificat, folosește `Ecomlab CRM <onboarding@resend.dev>` (merge doar către emailul cu care ți-ai făcut contul Resend). Pentru alte adrese: **Domains → Add Domain**, adaugi înregistrările DNS și apoi ex. `Ecomlab CRM <crm@ecomlab.ro>`.
+4. **Push**: în aplicație, **Setări → Notificări → Generează chei VAPID**, copiezi cele 3 valori (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) în Vercel, redeploy, apoi pe telefon: instalezi aplicația pe ecranul principal și apeși **Activează pe acest dispozitiv**.
+5. **Ora exactă (recomandat)**: Vercel gratuit rulează cronul o dată pe zi (`vercel.json`, 05:00 UTC = 07:00/08:00 în România). Ca emailul să plece la ora din Setări și push-ul să vină la ora fiecărui follow-up, deschide `supabase/cron-setup.sql`, înlocuiește adresa și secretul și rulează-l în **Supabase → SQL Editor**. Supabase va apela aplicația la fiecare 15 minute.
+
+Verificare: **Setări → Notificări → Trimite-mi acum emailul** și **Trimite un test** (push).
 
 ### 2. Rulare locală
 
