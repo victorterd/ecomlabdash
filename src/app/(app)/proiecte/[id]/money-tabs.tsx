@@ -78,19 +78,16 @@ function TextCell({
 
 function Summary({ items }: { items: { label: string; value: string; tone?: "good" | "warn" | "bad" }[] }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {items.map((i) => (
-        <div
-          key={i.label}
-          className={cn(
-            "rounded-lg border px-3 py-2",
-            i.tone === "good" && "border-success/30 bg-success/5",
-            i.tone === "warn" && "border-warning/40 bg-warning-soft",
-            i.tone === "bad" && "border-destructive/30 bg-danger-soft",
-          )}
-        >
-          <div className="text-xs text-muted-foreground">{i.label}</div>
-          <div className="font-semibold tabular-nums">{i.value}</div>
+        <div key={i.label} className="surface px-4 py-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {i.tone ? (
+              <span className={cn("size-1.5 rounded-full", i.tone === "good" && "bg-success", i.tone === "warn" && "bg-warning", i.tone === "bad" && "bg-destructive")} />
+            ) : null}
+            {i.label}
+          </div>
+          <div className={cn("mt-1 truncate text-[17px] font-semibold tabular-nums", i.tone === "bad" && "text-destructive")}>{i.value}</div>
         </div>
       ))}
     </div>
@@ -123,7 +120,7 @@ export function InstallmentsTab({
   const remaining = money.contractValue.minus(money.installmentsTotal);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <Summary
         items={[
           { label: "Valoare contract", value: formatRON(money.contractValue) },
@@ -144,10 +141,10 @@ export function InstallmentsTab({
         Fiecare tranșă apare automat în cashflow: planificată la scadență, apoi la data încasării efective.
       </p>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr className={thClass}>
                 <th>Sumă</th>
                 <th>Scadență</th>
@@ -241,12 +238,12 @@ export function InstallmentsTab({
             value={amount}
             onCommit={setAmount}
             allowEmpty
-            className="h-8 w-40 bg-background"
+            className="h-8 w-40 bg-card"
             placeholder="Sumă"
             aria-label="Sumă tranșă nouă"
           />
-          <DateField value={dueDate} onChange={setDueDate} className="h-8 w-40 bg-background" aria-label="Scadență tranșă nouă" />
-          <Input name="description" placeholder="Descriere (opțional)" className="h-8 max-w-56 bg-background" />
+          <DateField value={dueDate} onChange={setDueDate} className="h-8 w-40 bg-card" aria-label="Scadență tranșă nouă" />
+          <Input name="description" placeholder="Descriere (opțional)" className="h-8 max-w-56 bg-card" />
           {remaining.isPositive() && !amount ? (
             <Button type="button" variant="ghost" size="xs" onClick={() => setAmount(remaining.toFixed(2))}>
               restul: {formatRON(remaining)}
@@ -298,7 +295,7 @@ export function CostsTab({
   );
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <Summary
         items={[
           { label: "Venit (contract)", value: formatRON(money.contractValue) },
@@ -312,10 +309,10 @@ export function CostsTab({
         Costurile apar automat în cashflow ca cheltuieli business, în categoria tipului de cost.
       </p>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr className={thClass}>
                 <th>Tip</th>
                 <th>Persoană</th>
@@ -467,7 +464,7 @@ export function CostsTab({
           }}
         >
           <Select value={newType} onValueChange={setNewType}>
-            <SelectTrigger size="sm" className="w-40 bg-background">
+            <SelectTrigger size="sm" className="w-40 bg-card">
               <SelectValue>{typeById.get(newType)?.name ?? "Alt cost"}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -479,16 +476,16 @@ export function CostsTab({
               <SelectItem value={NO_TYPE}>Alt cost</SelectItem>
             </SelectContent>
           </Select>
-          <Input name="person" placeholder="Persoană" className="h-8 w-36 bg-background" />
+          <Input name="person" placeholder="Persoană" className="h-8 w-36 bg-card" />
           <MoneyInput
             value={amount}
             onCommit={setAmount}
             allowEmpty
-            className="h-8 w-36 bg-background"
+            className="h-8 w-36 bg-card"
             placeholder="Sumă"
             aria-label="Sumă cost nou"
           />
-          <DateField value={date} onChange={setDate} className="h-8 w-36 bg-background" aria-label="Dată cost nou" />
+          <DateField value={date} onChange={setDate} className="h-8 w-36 bg-card" aria-label="Dată cost nou" />
           <Button type="submit" size="sm" variant="outline">
             <PlusIcon /> Adaugă cost
           </Button>

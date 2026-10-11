@@ -3,36 +3,44 @@
 import { useEffect, useRef, useTransition } from "react";
 import { useTheme } from "next-themes";
 import { MoonIcon, SunIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { saveTheme } from "@/app/(app)/actions";
 import type { Theme } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /**
- * Comută light/dark și salvează alegerea pe profilul utilizatorului,
- * ca să fie aceeași pe orice dispozitiv.
+ * Tema light/dark, salvată pe profil (aceeași pe orice dispozitiv).
+ * La prima încărcare aplică tema salvată.
  */
-export function ThemeToggle({ savedTheme }: { savedTheme: Theme }) {
+export function useThemeToggle(savedTheme: Theme) {
   const { resolvedTheme, setTheme } = useTheme();
   const [, startTransition] = useTransition();
   const synced = useRef(false);
 
-  // La prima încărcare aplicăm tema salvată pe profil.
   useEffect(() => {
     if (synced.current) return;
     synced.current = true;
     setTheme(savedTheme === "dark" ? "dark" : "light");
   }, [savedTheme, setTheme]);
 
-  function toggle() {
+  return () => {
     const next: Theme = resolvedTheme === "dark" ? "light" : "dark";
     setTheme(next);
     startTransition(() => saveTheme(next));
-  }
+  };
+}
 
+export function ThemeToggle({ savedTheme, className, withLabel }: { savedTheme: Theme; className?: string; withLabel?: boolean }) {
+  const toggle = useThemeToggle(savedTheme);
   return (
-    <Button variant="ghost" size="icon-sm" onClick={toggle} aria-label="Schimbă tema">
-      <SunIcon className="hidden dark:block" />
-      <MoonIcon className="dark:hidden" />
-    </Button>
+    <button type="button" onClick={toggle} aria-label="Schimbă tema" className={cn("inline-flex items-center gap-3", className)}>
+      <SunIcon className="hidden size-4 dark:block" />
+      <MoonIcon className="size-4 dark:hidden" />
+      {withLabel ? (
+        <>
+          <span className="dark:hidden">Mod întunecat</span>
+          <span className="hidden dark:inline">Mod luminos</span>
+        </>
+      ) : null}
+    </button>
   );
 }

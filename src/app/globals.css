@@ -4,95 +4,118 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Paleta Ecomlab — verde din logo (#1CDB10) + negru (#111111).
- * Toate culorile aplicației vin din tokenii de mai jos.
+ * Ecomlab — sistem vizual.
+ * Negru (#111) pentru acțiuni principale, verde (#1CDB10) ca accent de brand,
+ * neutre calde pentru suprafețe. Toate culorile aplicației vin din tokenii de mai jos.
  */
 :root {
-  --radius: 0.6rem;
+  --radius: 0.75rem;
 
-  --background: #ffffff;
-  --foreground: #111111;
+  --background: #f6f6f3; /* pânza aplicației */
+  --foreground: #121412;
   --card: #ffffff;
-  --card-foreground: #111111;
+  --card-foreground: #121412;
   --popover: #ffffff;
-  --popover-foreground: #111111;
+  --popover-foreground: #121412;
 
-  --primary: #1cdb10;
-  --primary-foreground: #0b2e08;
+  --primary: #121412;
+  --primary-foreground: #ffffff;
   --brand: #1cdb10;
-  --brand-strong: #13a80a;
+  --brand-strong: #109a07;
+  --brand-foreground: #062904;
+  --brand-soft: #e9fbe6;
 
-  --secondary: #f4f5f4;
-  --secondary-foreground: #111111;
-  --muted: #f4f5f4;
-  --muted-foreground: #5f6660;
+  --secondary: #efefeb;
+  --secondary-foreground: #121412;
+  --muted: #f0f0ec;
+  --muted-foreground: #6b6f69;
   --accent: #ecfbe9;
-  --accent-foreground: #0f3d0b;
+  --accent-foreground: #0d4209;
 
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --warning: #f59e0b;
-  --warning-soft: #fef6e3;
-  --danger-soft: #fdecec;
-  --success: #16a34a;
+  --warning: #c27803;
+  --warning-soft: #fdf3dc;
+  --danger-soft: #fdeceb;
+  --success: #15803d;
+  --info: #2563eb;
+  --info-soft: #e8effd;
 
-  --border: #e5e8e5;
-  --input: #dfe3df;
+  --border: #e4e4df;
+  --border-strong: #d4d4ce;
+  --input: #dcdcd6;
   --ring: #1cdb10;
 
-  --sidebar: #fafbfa;
-  --sidebar-foreground: #111111;
-  --sidebar-accent: #ecfbe9;
-  --sidebar-accent-foreground: #0f3d0b;
-  --sidebar-border: #e8ebe8;
+  --sidebar: #0e100e;
+  --sidebar-foreground: #c9cdc8;
+  --sidebar-muted: #7d837c;
+  --sidebar-accent: #1b1f1b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f231f;
+
+  --shadow-color: 30 20% 10%;
 }
 
 .dark {
-  --background: #0c0d0c;
-  --foreground: #f2f3f2;
-  --card: #141614;
-  --card-foreground: #f2f3f2;
-  --popover: #161816;
-  --popover-foreground: #f2f3f2;
+  --background: #0a0b0a;
+  --foreground: #eef0ed;
+  --card: #121412;
+  --card-foreground: #eef0ed;
+  --popover: #161916;
+  --popover-foreground: #eef0ed;
 
-  --primary: #1cdb10;
-  --primary-foreground: #061a04;
+  --primary: #eef0ed;
+  --primary-foreground: #0a0b0a;
   --brand: #1cdb10;
-  --brand-strong: #3ee433;
+  --brand-strong: #3fe434;
+  --brand-foreground: #052003;
+  --brand-soft: #112a0e;
 
-  --secondary: #1d201d;
-  --secondary-foreground: #f2f3f2;
-  --muted: #1b1d1b;
-  --muted-foreground: #9aa29b;
-  --accent: #15260f;
-  --accent-foreground: #b9f5b4;
+  --secondary: #1b1e1b;
+  --secondary-foreground: #eef0ed;
+  --muted: #181a18;
+  --muted-foreground: #949a93;
+  --accent: #14260f;
+  --accent-foreground: #b6f3b0;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --warning: #fbbf24;
-  --warning-soft: #2b2310;
-  --danger-soft: #2d1414;
-  --success: #22c55e;
+  --warning: #f2b632;
+  --warning-soft: #2a220e;
+  --danger-soft: #2c1313;
+  --success: #3ccb6c;
+  --info: #6aa1ff;
+  --info-soft: #121c30;
 
-  --border: #262a26;
-  --input: #2e332e;
+  --border: #232723;
+  --border-strong: #2f342f;
+  --input: #2c312c;
   --ring: #1cdb10;
 
-  --sidebar: #101210;
-  --sidebar-foreground: #f2f3f2;
-  --sidebar-accent: #15260f;
-  --sidebar-accent-foreground: #b9f5b4;
-  --sidebar-border: #222622;
+  --sidebar: #070807;
+  --sidebar-foreground: #b9beb8;
+  --sidebar-muted: #6c726b;
+  --sidebar-accent: #161916;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #181b18;
+
+  --shadow-color: 0 0% 0%;
 }
 
 @theme inline {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-outfit), var(--font-inter), ui-sans-serif, sans-serif;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.05);
+  --shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 1px 3px hsl(var(--shadow-color) / 0.05);
+  --shadow-md: 0 4px 12px -2px hsl(var(--shadow-color) / 0.08), 0 2px 4px -2px hsl(var(--shadow-color) / 0.05);
+  --shadow-lg: 0 16px 40px -12px hsl(var(--shadow-color) / 0.22), 0 4px 10px -4px hsl(var(--shadow-color) / 0.08);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -104,6 +127,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -116,14 +141,31 @@
   --color-warning-soft: var(--warning-soft);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
+
+  --animate-fade-up: fade-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }
 
 @layer base {
@@ -132,20 +174,45 @@
   }
   html {
     -webkit-tap-highlight-color: transparent;
+    scrollbar-gutter: stable;
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
+    font-feature-settings: "cv11", "ss01", "ss03";
+    text-rendering: optimizeLegibility;
   }
   h1,
   h2,
   h3 {
     font-family: var(--font-heading);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 35%, transparent);
   }
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
+  /* Scrollbar discret */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}
+
+@layer components {
+  /* Suprafață de tip card, folosită și de tabele și panouri. */
+  .surface {
+    @apply rounded-xl border bg-card shadow-sm;
+  }
+  /* Antet de tabel unitar. */
+  .table-head {
+    @apply bg-muted/60 text-xs font-medium text-muted-foreground;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }

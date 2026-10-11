@@ -48,7 +48,7 @@ export function ActorsTab({
     });
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <Select value={pick} onValueChange={setPick}>
           <SelectTrigger className="w-64">
@@ -88,9 +88,9 @@ export function ActorsTab({
       </div>
 
       {projectActors.length === 0 ? (
-        <div className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">Niciun actor alocat.</div>
+        <div className="rounded-xl border border-dashed bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">Niciun actor alocat.</div>
       ) : (
-        <div className="divide-y rounded-lg border">
+        <div className="surface divide-y">
           {projectActors.map((pa) => {
             const actor = actorById.get(pa.actor_id);
             const cost = costByActor.get(pa.actor_id);

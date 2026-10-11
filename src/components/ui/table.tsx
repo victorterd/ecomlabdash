@@ -24,14 +24,14 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
-      className={cn("h-9 px-2 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground", className)}
+      className={cn("h-9 px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground", className)}
       {...props}
     />
   );
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return <td className={cn("px-2 py-1.5 align-middle whitespace-nowrap", className)} {...props} />;
+  return <td className={cn("px-3 py-2 align-middle whitespace-nowrap", className)} {...props} />;
 }
 
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell };

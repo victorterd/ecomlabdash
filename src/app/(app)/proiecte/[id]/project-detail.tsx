@@ -140,8 +140,8 @@ export function ProjectDetail({
   const costs = state.transactions.filter((t) => t.type === "expense");
 
   return (
-    <div className="grid gap-5">
-      <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-5">
+      <div className="grid min-w-0 grid-cols-1 gap-3">
         <Link href="/proiecte" className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeftIcon className="size-4" /> Proiecte
         </Link>
@@ -221,7 +221,7 @@ export function ProjectDetail({
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
         <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
           <TabsList>
             <TabsTrigger value="prezentare">Prezentare</TabsTrigger>
@@ -239,10 +239,10 @@ export function ProjectDetail({
           </TabsList>
         </div>
 
-        <TabsContent value="prezentare" className="mt-4">
+        <TabsContent value="prezentare" className="mt-4 min-w-0">
           <OverviewTab state={state} setState={setState} money={money} isAdmin={isAdmin} onPatch={patchProject} />
         </TabsContent>
-        <TabsContent value="etape" className="mt-4">
+        <TabsContent value="etape" className="mt-4 min-w-0">
           <StagesTab
             projectId={project.id}
             stages={stages}
@@ -254,7 +254,7 @@ export function ProjectDetail({
         </TabsContent>
         {isAdmin && money ? (
           <>
-            <TabsContent value="incasari" className="mt-4">
+            <TabsContent value="incasari" className="mt-4 min-w-0">
               <InstallmentsTab
                 projectId={project.id}
                 transactions={installments}
@@ -263,7 +263,7 @@ export function ProjectDetail({
                 onTransactions={(transactions) => setState((s) => ({ ...s, transactions }))}
               />
             </TabsContent>
-            <TabsContent value="costuri" className="mt-4">
+            <TabsContent value="costuri" className="mt-4 min-w-0">
               <CostsTab
                 projectId={project.id}
                 transactions={costs}
@@ -277,7 +277,7 @@ export function ProjectDetail({
             </TabsContent>
           </>
         ) : null}
-        <TabsContent value="actori" className="mt-4">
+        <TabsContent value="actori" className="mt-4 min-w-0">
           <ActorsTab
             projectId={project.id}
             projectActors={data.projectActors}
@@ -287,7 +287,7 @@ export function ProjectDetail({
             onTransactions={(transactions) => setState((s) => ({ ...s, transactions }))}
           />
         </TabsContent>
-        <TabsContent value="filmari" className="mt-4">
+        <TabsContent value="filmari" className="mt-4 min-w-0">
           <ShootsTab
             projectId={project.id}
             shoots={state.shoots}

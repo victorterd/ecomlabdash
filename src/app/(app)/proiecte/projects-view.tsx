@@ -172,7 +172,7 @@ export function ProjectsView({
       </div>
 
       {projects.length === 0 ? (
-        <div className="rounded-xl border border-dashed px-6 py-14 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-dashed bg-card/50 px-6 py-14 text-center text-sm text-muted-foreground">
           Nu ai încă proiecte. Creează unul nou sau deschide un lead câștigat și apasă „Creează proiect”.
         </div>
       ) : view === "kanban" ? (
@@ -191,7 +191,7 @@ function ViewButton({ active, onClick, icon, label }: { active: boolean; onClick
       onClick={onClick}
       className={cn(
         "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground [&_svg]:size-4",
-        active && "bg-background text-foreground shadow-sm",
+        active && "bg-card text-foreground shadow-sm",
       )}
     >
       {icon} {label}
@@ -268,7 +268,7 @@ function KanbanColumn({ stage, rows, isAdmin, today }: { stage: ProjectStage; ro
       <div className="flex items-center gap-2 px-3 pt-3 pb-2">
         <span className="size-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
         <span className="text-sm font-semibold">{stage.name}</span>
-        <span className="rounded-full bg-background px-1.5 text-[11px] leading-5 text-muted-foreground tabular-nums">{rows.length}</span>
+        <span className="rounded-full bg-card px-1.5 text-[11px] leading-5 text-muted-foreground tabular-nums">{rows.length}</span>
         <span className="flex-1" />
         {isAdmin && total > 0 ? <span className="text-[11px] text-muted-foreground tabular-nums">{formatRON(total)}</span> : null}
       </div>
@@ -381,10 +381,10 @@ function ProjectsTable({
   });
 
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div className="surface overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-xs text-muted-foreground">
+          <thead className="table-head">
             <tr className="[&>th]:h-9 [&>th]:px-3 [&>th]:text-left [&>th]:font-medium [&>th]:whitespace-nowrap">
               <th>Client</th>
               <th>Ce s-a vândut</th>

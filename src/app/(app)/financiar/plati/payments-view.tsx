@@ -79,12 +79,12 @@ export function PaymentsView({
           </span>
         </div>
         {groups.length === 0 ? (
-          <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">Nimic planificat.</p>
+          <p className="rounded-xl border border-dashed bg-card/50 px-4 py-8 text-center text-sm text-muted-foreground">Nimic planificat.</p>
         ) : null}
         {groups
           .filter((g) => g.key !== "later" || showLater)
           .map((g) => (
-            <div key={g.key} className="overflow-hidden rounded-lg border">
+            <div key={g.key} className="surface overflow-hidden">
               <div
                 className={cn(
                   "flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs font-medium",

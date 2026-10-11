@@ -88,7 +88,7 @@ export function ForecastView({
           inputMode="decimal"
           placeholder="—"
           aria-label={`Forecast ${type === "income" ? "venituri" : "cheltuieli"} ${label(m)}`}
-          className="h-7 w-24 rounded border border-transparent bg-transparent px-1.5 text-right text-sm outline-none hover:border-input focus:border-ring focus:bg-background"
+          className="h-7 w-24 rounded border border-transparent bg-transparent px-1.5 text-right text-sm outline-none hover:border-input focus:border-ring focus:bg-card"
           onBlur={(e) => save(m, type, categoryId, e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         />
@@ -105,10 +105,10 @@ export function ForecastView({
             Introdu cât estimezi că vei încasa și cheltui în fiecare lună. Se salvează automat.
           </p>
         </div>
-        <div className="overflow-hidden rounded-lg border">
+        <div className="surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
+              <thead className="table-head">
                 <tr className={th}>
                   <th className="sticky left-0 z-10 min-w-44 bg-muted text-left!">Estimare</th>
                   {months.map((m) => (
@@ -120,12 +120,12 @@ export function ForecastView({
               </thead>
               <tbody>
                 <tr className={cn("border-t font-medium", td)}>
-                  <td className="sticky left-0 z-10 bg-background text-left!">Venituri</td>
+                  <td className="sticky left-0 z-10 bg-card text-left!">Venituri</td>
                   {months.map((m) => inputCell(m.month, "income", null))}
                 </tr>
                 {categories.map((c) => (
                   <tr key={c.id} className={cn("border-t", td)}>
-                    <td className="sticky left-0 z-10 bg-background text-left!">
+                    <td className="sticky left-0 z-10 bg-card text-left!">
                       <span className="inline-flex items-center gap-2">
                         <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
                         {c.name}
@@ -135,7 +135,7 @@ export function ForecastView({
                   </tr>
                 ))}
                 <tr className={cn("border-t-2 font-semibold", td)}>
-                  <td className="sticky left-0 z-10 bg-background text-left!">Total cheltuieli</td>
+                  <td className="sticky left-0 z-10 bg-card text-left!">Total cheltuieli</td>
                   {months.map((m) => (
                     <td key={m.month}>{money(forecastExpense(m.month))}</td>
                   ))}
@@ -154,10 +154,10 @@ export function ForecastView({
             s-a încasat/plătit deja.
           </p>
         </div>
-        <div className="overflow-hidden rounded-lg border">
+        <div className="surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
+              <thead className="table-head">
                 <tr className={th}>
                   <th className="sticky left-0 z-10 min-w-44 bg-muted text-left!" />
                   {months.map((m) => (
@@ -179,7 +179,7 @@ export function ForecastView({
                   ] as const
                 ).map(([name, get, cls]) => (
                   <tr key={name} className={cn("border-t", td, cls)}>
-                    <td className="sticky left-0 z-10 bg-background text-left!">{name}</td>
+                    <td className="sticky left-0 z-10 bg-card text-left!">{name}</td>
                     {months.map((m) => (
                       <td key={m.month} className={cn(m.month === currentMonth && "bg-accent/40")}>
                         {money(get(m))}
@@ -188,7 +188,7 @@ export function ForecastView({
                   </tr>
                 ))}
                 <tr className={cn("border-t-2 font-semibold", td)}>
-                  <td className="sticky left-0 z-10 bg-background text-left!">Sold proiectat (planificat)</td>
+                  <td className="sticky left-0 z-10 bg-card text-left!">Sold proiectat (planificat)</td>
                   {balances.map((b, i) => (
                     <td key={months[i]!.month} className={cn(b.planned.isNegative() && "text-destructive")}>
                       {formatAmount(b.planned)}
@@ -196,7 +196,7 @@ export function ForecastView({
                   ))}
                 </tr>
                 <tr className={cn("border-t font-semibold", td)}>
-                  <td className="sticky left-0 z-10 bg-background text-left!">Sold proiectat (forecast)</td>
+                  <td className="sticky left-0 z-10 bg-card text-left!">Sold proiectat (forecast)</td>
                   {balances.map((b, i) => (
                     <td key={months[i]!.month} className={cn(b.forecast.isNegative() && "text-destructive")}>
                       {formatAmount(b.forecast)}

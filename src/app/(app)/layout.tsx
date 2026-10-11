@@ -1,49 +1,37 @@
-import { Logo } from "@/components/layout/logo";
-import { MobileNav } from "@/components/layout/mobile-nav";
-import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { cookies } from "next/headers";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { SIDEBAR_COOKIE } from "@/components/layout/nav";
+import { CommandMenuProvider } from "@/components/layout/command-menu";
+import { MobileTabBar, MobileTopBar } from "@/components/layout/mobile-bar";
 import { ServiceWorkerRegister } from "@/components/layout/sw-register";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { UserMenu } from "@/components/layout/user-menu";
 import { requireProfile } from "@/lib/auth";
 import { todayISO } from "@/lib/format";
 import { countDueFollowUps } from "@/lib/leads/queries";
 import { countDue } from "@/lib/reminders/collect";
 import { getMyReminders } from "@/lib/reminders/server";
-import Link from "next/link";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const profile = await requireProfile();
-  // Badge-uri în sidebar: follow-up-uri de azi și restante (Etapa 5 adaugă restul reminderelor).
-  const badges: Record<string, number> = {};
-  const [reminders, dueFollowUps] = await Promise.all([
+  const [reminders, dueFollowUps, cookieStore] = await Promise.all([
     getMyReminders(),
     profile.role === "admin" || profile.role === "setter" ? countDueFollowUps(todayISO()) : 0,
+    cookies(),
   ]);
-  badges["/"] = countDue(reminders);
+  // Badge-uri: tot ce e restant sau de azi (Dashboard) și follow-up-urile (Lead-uri).
+  const badges: Record<string, number> = { "/": countDue(reminders) };
   if (dueFollowUps) badges["/leaduri"] = dueFollowUps;
 
   return (
-    <div className="flex min-h-dvh">
-      <ServiceWorkerRegister />
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-3 lg:flex">
-        <Link href="/" className="px-3 pt-2 pb-6">
-          <Logo className="h-5" />
-        </Link>
-        <SidebarNav role={profile.role} badges={badges} />
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur sm:px-5">
-          <MobileNav role={profile.role} badges={badges} />
-          <Link href="/" className="lg:hidden">
-            <Logo className="h-4" />
-          </Link>
-          <div className="flex-1" />
-          <ThemeToggle savedTheme={profile.theme} />
-          <UserMenu profile={profile} />
-        </header>
-        <main className="mx-auto w-full max-w-[1600px] flex-1 px-3 py-5 sm:px-5 lg:px-8 lg:py-6">{children}</main>
+    <CommandMenuProvider role={profile.role}>
+      <div className="flex min-h-dvh">
+        <ServiceWorkerRegister />
+        <AppSidebar profile={profile} badges={badges} defaultCollapsed={cookieStore.get(SIDEBAR_COOKIE)?.value === "collapsed"} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <MobileTopBar profile={profile} />
+          <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 pt-5 pb-28 sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">{children}</main>
+        </div>
+        <MobileTabBar profile={profile} badges={badges} />
       </div>
-    </div>
+    </CommandMenuProvider>
   );
 }

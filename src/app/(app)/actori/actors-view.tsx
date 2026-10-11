@@ -40,10 +40,10 @@ export function ActorsView({ actors, projectCounts }: { actors: Actor[]; project
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr className="[&>th]:h-9 [&>th]:px-3 [&>th]:text-left [&>th]:font-medium [&>th]:whitespace-nowrap">
                 <th>Nume</th>
                 <th>Telefon</th>

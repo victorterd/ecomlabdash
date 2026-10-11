@@ -2,9 +2,20 @@ import Link from "next/link";
 import Decimal from "decimal.js";
 import { addDays, format, parseISO } from "date-fns";
 import { ro } from "date-fns/locale";
-import { AlertTriangleIcon, ArrowRightIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  ArrowRightIcon,
+  CalendarClockIcon,
+  ClapperboardIcon,
+  ListTodoIcon,
+  PhoneCallIcon,
+  PlusIcon,
+  WalletIcon,
+} from "lucide-react";
+import { Agenda } from "@/components/dashboard/agenda";
 import { ReminderList } from "@/components/dashboard/reminder-list";
-import { ColorBadge } from "@/components/ui/badge";
+import { StatCard } from "@/components/stat-card";
+import { Button } from "@/components/ui/button";
 import { requireProfile } from "@/lib/auth";
 import { balanceAt, lastDayOfMonth, monthKey } from "@/lib/finance/calc";
 import { fetchFinanceSettings, fetchTransactions } from "@/lib/finance/queries";
@@ -16,10 +27,17 @@ import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Dashboard" };
 
+function greeting(hour: number) {
+  if (hour < 11) return "Bună dimineața";
+  if (hour < 18) return "Bună ziua";
+  return "Bună seara";
+}
+
 export default async function DashboardPage() {
   const profile = await requireProfile();
   const isAdmin = profile.role === "admin";
   const seesProjects = profile.role !== "setter";
+  const seesLeads = profile.role !== "productie";
   const today = todayISO();
 
   const [reminders, money, projectsBlock] = await Promise.all([
@@ -29,110 +47,157 @@ export default async function DashboardPage() {
   ]);
 
   const tomorrow = format(addDays(parseISO(today), 1), "yyyy-MM-dd");
-  // „De făcut azi”: tot ce e azi + filmările de mâine (pregătire).
+  // „Azi” include și filmările de mâine (pregătire).
   const todo = [...reminders.today, ...reminders.upcoming.filter((r) => r.kind === "shoot" && r.date === tomorrow)];
+  const upcoming = reminders.upcoming.filter((r) => !todo.includes(r));
   const firstName = profile.full_name.split(" ")[0] || "";
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: "Europe/Bucharest" }).format(new Date()));
+  const followUpsToday = reminders.today.filter((r) => r.kind === "followup").length + reminders.overdue.filter((r) => r.kind === "followup").length;
+  const shootsWeek = [...reminders.today, ...reminders.upcoming].filter((r) => r.kind === "shoot").length;
 
   return (
-    <div className="grid grid-cols-1 gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Salut{firstName ? `, ${firstName}` : ""}!</h1>
-        <p className="mt-1 text-sm text-muted-foreground capitalize">{format(parseISO(today), "EEEE, d MMMM yyyy", { locale: ro })}</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="De făcut azi" count={todo.length}>
-          <ReminderList items={todo} today={today} empty="Nimic programat pentru azi." limit={10} />
-        </Panel>
-        <Panel title="Remindere" subtitle="Restante și următoarele 3 zile" count={reminders.overdue.length} countTone="bad">
-          {reminders.overdue.length ? (
-            <div className="mb-2">
-              <div className="mb-1 flex items-center gap-1.5 px-1 text-xs font-medium text-destructive">
-                <AlertTriangleIcon className="size-3.5" /> Restante · {reminders.overdue.length}
-              </div>
-              <ReminderList items={[...reminders.overdue].reverse()} today={today} empty="" limit={6} />
-            </div>
+    <div className="grid grid-cols-1 gap-6 animate-fade-up">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground first-letter:uppercase">{format(parseISO(today), "EEEE, d MMMM yyyy", { locale: ro })}</p>
+          <h1 className="mt-1 text-[28px] leading-tight font-semibold tracking-tight">
+            {greeting(hour)}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {todo.length || reminders.overdue.length
+              ? `Ai ${todo.length} ${todo.length === 1 ? "lucru" : "lucruri"} pentru azi${reminders.overdue.length ? ` și ${reminders.overdue.length} restante` : ""}.`
+              : "Nimic urgent azi. Zi liniștită!"}
+          </p>
+        </div>
+        <div className="hidden gap-2 sm:flex">
+          {seesLeads ? (
+            <Button variant="outline" asChild>
+              <Link href="/leaduri?nou=1">
+                <PlusIcon /> Lead
+              </Link>
+            </Button>
           ) : null}
-          <div className="mb-1 px-1 text-xs font-medium text-muted-foreground">Următoarele 3 zile</div>
-          <ReminderList items={reminders.upcoming} today={today} empty="Nimic în următoarele 3 zile." limit={8} />
-        </Panel>
+          {seesProjects ? (
+            <Button asChild>
+              <Link href="/proiecte/nou">
+                <PlusIcon /> Proiect
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      {money ? (
-        <Panel title="Bani luna asta" subtitle={format(parseISO(today), "LLLL yyyy", { locale: ro })} href="/financiar">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <Stat label="Încasat" value={formatRON(money.received)} tone="good" />
-            <Stat label="Cheltuit" value={formatRON(money.spent)} />
-            <Stat label="Profit (realizat)" value={formatRON(money.profit)} tone={money.profit.isNegative() ? "bad" : undefined} />
-            <Stat
-              label="De încasat"
-              value={formatRON(money.toReceive)}
-              hint={money.overdueIncome ? `${money.overdueIncome} restante` : "până la final de lună"}
-            />
-            <Stat label="Sold curent" value={formatRON(money.balance)} strong />
-          </div>
-        </Panel>
-      ) : null}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard icon={ListTodoIcon} label="De făcut azi" value={String(todo.length)} hint={todo.length ? "vezi agenda" : "nimic programat"} />
+        <StatCard
+          icon={AlertTriangleIcon}
+          label="Restante"
+          value={String(reminders.overdue.length)}
+          tone={reminders.overdue.length ? "bad" : "good"}
+          hint={reminders.overdue.length ? "de rezolvat" : "totul la zi"}
+        />
+        {seesLeads ? (
+          <StatCard icon={PhoneCallIcon} label="Follow-up-uri" value={String(followUpsToday)} hint="azi și restante" href="/leaduri?follow=due" />
+        ) : (
+          <StatCard icon={ClapperboardIcon} label="Filmări" value={String(shootsWeek)} hint="în următoarele 3 zile" href="/calendar" />
+        )}
+        {money ? (
+          <StatCard icon={WalletIcon} label="Sold curent" value={formatRON(money.balance)} hint={`încasat luna asta ${formatRON(money.received)}`} href="/financiar" accent />
+        ) : (
+          <StatCard icon={ClapperboardIcon} label="Proiecte active" value={String(projectsBlock?.active ?? 0)} hint="în lucru" href="/proiecte" />
+        )}
+      </section>
 
-      {projectsBlock ? (
-        <Panel title="Proiecte și termene" href="/proiecte" count={projectsBlock.active} countLabel="active">
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <div className="grid min-w-0 grid-cols-1 content-start gap-2">
-              <h3 className="text-xs font-medium text-muted-foreground">Pe stadii</h3>
-              {projectsBlock.byStage.map((s) => (
-                <Link key={s.id} href="/proiecte" className="flex items-center gap-2 text-sm">
-                  <span className="w-36 truncate">
-                    <ColorBadge color={s.color}>{s.name}</ColorBadge>
-                  </span>
-                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                    <span
-                      className="block h-full rounded-full"
-                      style={{ width: `${(s.count / projectsBlock.maxStage) * 100}%`, backgroundColor: s.color }}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <Agenda
+          today={todo}
+          overdue={reminders.overdue}
+          upcoming={upcoming}
+          render={{
+            today: <ReminderList items={todo} today={today} empty="" limit={30} />,
+            overdue: <ReminderList items={[...reminders.overdue].reverse()} today={today} empty="" limit={30} />,
+            upcoming: <ReminderList items={upcoming} today={today} empty="" limit={30} />,
+          }}
+        />
+
+        <div className="grid min-w-0 grid-cols-1 content-start gap-6">
+          {money ? (
+            <Panel title="Bani luna asta" subtitle={format(parseISO(today), "LLLL yyyy", { locale: ro })} href="/financiar">
+              <div className="grid gap-3">
+                <MoneyRow label="Încasat" value={money.received} tone="good" />
+                <MoneyRow label="Cheltuit" value={money.spent} />
+                <div className="border-t pt-3">
+                  <MoneyRow label="Profit realizat" value={money.profit} strong />
+                </div>
+                <div className="rounded-lg bg-muted/60 p-3">
+                  <div className="mb-2 flex items-baseline justify-between text-xs">
+                    <span className="text-muted-foreground">De încasat până la final de lună</span>
+                    <span className="font-semibold tabular-nums">{formatRON(money.toReceive)}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full rounded-full bg-brand"
+                      style={{ width: `${Math.min(100, money.received.plus(money.toReceive).isZero() ? 0 : money.received.div(money.received.plus(money.toReceive)).times(100).toNumber())}%` }}
                     />
-                  </span>
-                  <span className="w-6 text-right tabular-nums">{s.count}</span>
-                </Link>
-              ))}
-              {projectsBlock.active === 0 ? <p className="text-sm text-muted-foreground">Niciun proiect activ.</p> : null}
-            </div>
-            <div className="grid min-w-0 grid-cols-1 content-start gap-4">
+                  </div>
+                  <div className="mt-1.5 text-[11px] text-muted-foreground">
+                    {money.overdueIncome ? <span className="text-destructive">{money.overdueIncome} încasări restante · </span> : null}
+                    încasat din total estimat
+                  </div>
+                </div>
+              </div>
+            </Panel>
+          ) : null}
+
+          {projectsBlock ? (
+            <Panel title="Proiecte" subtitle={`${projectsBlock.active} active`} href="/proiecte">
+              <div className="grid gap-2">
+                {projectsBlock.byStage
+                  .filter((s) => s.count)
+                  .map((s) => (
+                    <Link key={s.id} href="/proiecte" className="group flex items-center gap-3 text-sm">
+                      <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                      <span className="w-32 truncate text-muted-foreground group-hover:text-foreground">{s.name}</span>
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <span className="block h-full rounded-full" style={{ width: `${(s.count / projectsBlock.maxStage) * 100}%`, backgroundColor: s.color }} />
+                      </span>
+                      <span className="w-5 text-right font-medium tabular-nums">{s.count}</span>
+                    </Link>
+                  ))}
+                {projectsBlock.active === 0 ? <p className="text-sm text-muted-foreground">Niciun proiect activ.</p> : null}
+              </div>
               {projectsBlock.late.length ? (
-                <div className="grid gap-1.5">
-                  <h3 className="flex items-center gap-1.5 text-xs font-medium text-destructive">
-                    <AlertTriangleIcon className="size-3.5" /> Întârziate · {projectsBlock.late.length}
-                  </h3>
-                  {projectsBlock.late.slice(0, 5).map((p) => (
+                <div className="mt-4 grid gap-1.5">
+                  {projectsBlock.late.slice(0, 4).map((p) => (
                     <Link
                       key={p.id}
                       href={`/proiecte/${p.id}?tab=etape`}
-                      className="flex items-center justify-between gap-2 rounded-md bg-danger-soft px-2.5 py-1.5 text-sm"
+                      className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-danger-soft px-3 py-2 text-sm"
                     >
-                      <span className="truncate font-medium">{p.name}</span>
+                      <AlertTriangleIcon className="size-3.5 shrink-0 text-destructive" />
+                      <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
                       <span className="shrink-0 text-xs text-destructive">{p.reason}</span>
                     </Link>
                   ))}
                 </div>
               ) : null}
-              <div className="grid gap-1.5">
-                <h3 className="text-xs font-medium text-muted-foreground">Următoarele deadline-uri</h3>
-                {projectsBlock.upcoming.length === 0 ? <p className="text-sm text-muted-foreground">Niciun deadline programat.</p> : null}
-                {projectsBlock.upcoming.map((p) => (
-                  <Link
-                    key={p.id}
-                    href={`/proiecte/${p.id}`}
-                    className="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm hover:bg-muted/50"
-                  >
-                    <span className="truncate">{p.name}</span>
-                    <span className={cn("shrink-0 text-xs tabular-nums", p.soon ? "font-medium text-warning" : "text-muted-foreground")}>
-                      {formatDate(p.deadline)}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Panel>
-      ) : null}
+              {projectsBlock.upcoming.length ? (
+                <div className="mt-4 border-t pt-3">
+                  <div className="mb-1.5 text-xs font-medium text-muted-foreground">Următoarele deadline-uri</div>
+                  {projectsBlock.upcoming.map((p) => (
+                    <Link key={p.id} href={`/proiecte/${p.id}`} className="-mx-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/60">
+                      <CalendarClockIcon className={cn("size-3.5 shrink-0", p.soon ? "text-warning" : "text-muted-foreground")} />
+                      <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                      <span className={cn("shrink-0 text-xs tabular-nums", p.soon ? "font-medium text-warning" : "text-muted-foreground")}>{formatDate(p.deadline)}</span>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </Panel>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -196,45 +261,16 @@ async function projectsSummary(isAdmin: boolean, today: string) {
   };
 }
 
-function Panel({
-  title,
-  subtitle,
-  count,
-  countTone,
-  countLabel,
-  href,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  count?: number;
-  countTone?: "bad";
-  countLabel?: string;
-  href?: string;
-  children: React.ReactNode;
-}) {
+function Panel({ title, subtitle, href, children }: { title: string; subtitle?: string; href?: string; children: React.ReactNode }) {
   return (
-    <section className="grid min-w-0 grid-cols-1 content-start gap-3 rounded-xl border bg-card p-4">
-      <div className="flex items-start justify-between gap-2">
+    <section className="surface min-w-0 p-5">
+      <div className="mb-4 flex items-start justify-between gap-2">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            {title}
-            {count ? (
-              <span
-                className={cn(
-                  "rounded-full px-1.5 text-[11px] leading-5 font-semibold tabular-nums",
-                  countTone === "bad" ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground",
-                )}
-              >
-                {count}
-                {countLabel ? ` ${countLabel}` : ""}
-              </span>
-            ) : null}
-          </h2>
+          <h2 className="text-[15px] font-semibold">{title}</h2>
           {subtitle ? <p className="text-xs text-muted-foreground first-letter:uppercase">{subtitle}</p> : null}
         </div>
         {href ? (
-          <Link href={href} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+          <Link href={href} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
             Deschide <ArrowRightIcon className="size-3.5" />
           </Link>
         ) : null}
@@ -244,32 +280,20 @@ function Panel({
   );
 }
 
-function Stat({
-  label,
-  value,
-  hint,
-  tone,
-  strong,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: "good" | "bad";
-  strong?: boolean;
-}) {
+function MoneyRow({ label, value, tone, strong }: { label: string; value: Decimal; tone?: "good"; strong?: boolean }) {
   return (
-    <div className={cn("grid gap-0.5 rounded-lg bg-muted/50 p-3", strong && "bg-accent")}>
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <div className="flex items-baseline justify-between gap-3">
+      <span className={cn("text-sm", strong ? "font-medium" : "text-muted-foreground")}>{label}</span>
       <span
         className={cn(
-          "text-base font-semibold tabular-nums sm:text-lg",
+          "tabular-nums",
+          strong ? "text-lg font-semibold" : "font-medium",
           tone === "good" && "text-success",
-          tone === "bad" && "text-destructive",
+          value.isNegative() && "text-destructive",
         )}
       >
-        {value}
+        {formatRON(value)}
       </span>
-      {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
     </div>
   );
 }

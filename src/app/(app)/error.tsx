@@ -12,7 +12,7 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
       </div>
       <p className="text-sm">
         A apărut o eroare pe server. Dacă tocmai ai actualizat aplicația, verifică dacă ai rulat în Supabase toate migrațiile din{" "}
-        <code className="rounded bg-background px-1.5 py-0.5 text-xs">supabase/migrations/</code>.
+        <code className="rounded bg-card px-1.5 py-0.5 text-xs">supabase/migrations/</code>.
       </p>
       {error.digest ? <p className="text-xs text-muted-foreground">Cod eroare: {error.digest}</p> : null}
       <div>

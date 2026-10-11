@@ -32,7 +32,7 @@ export function SettingsForm({
 
   return (
     <form
-      className="grid gap-4 rounded-lg border p-4"
+      className="surface grid gap-4 p-4 sm:p-5"
       onChange={() => setDirty(true)}
       onSubmit={(e) => {
         e.preventDefault();

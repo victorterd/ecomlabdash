@@ -65,8 +65,8 @@ export function NotificationToggles({ prefs, defaultEmail }: { prefs: Notificati
 
   return (
     <div className="grid gap-4">
-      <div className="divide-y rounded-lg border">{CHANNELS.map((c) => row(c.key, c.label, c.help))}</div>
-      <div className="divide-y rounded-lg border">{EVENTS.map((e) => row(e.key, e.label))}</div>
+      <div className="surface divide-y">{CHANNELS.map((c) => row(c.key, c.label, c.help))}</div>
+      <div className="surface divide-y">{EVENTS.map((e) => row(e.key, e.label))}</div>
       <div className="grid max-w-sm gap-1.5">
         <Label htmlFor="email_to">Trimite emailul la</Label>
         <Input

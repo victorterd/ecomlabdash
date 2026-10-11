@@ -153,7 +153,7 @@ function TransactionForm({
             onClick={() => setType(t)}
             className={cn(
               "rounded-md px-3 py-1 font-medium text-muted-foreground",
-              type === t && "bg-background text-foreground shadow-sm",
+              type === t && "bg-card text-foreground shadow-sm",
             )}
           >
             {t === "income" ? "Încasare" : "Cheltuială"}
@@ -249,7 +249,7 @@ function TransactionForm({
                   onClick={() => setScope(s)}
                   className={cn(
                     "flex-1 rounded-md px-2 py-1 font-medium text-muted-foreground",
-                    scope === s && "bg-background text-foreground shadow-sm",
+                    scope === s && "bg-card text-foreground shadow-sm",
                   )}
                 >
                   {s === "business" ? "Business" : "Personal"}

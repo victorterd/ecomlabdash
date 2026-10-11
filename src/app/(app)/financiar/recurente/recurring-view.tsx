@@ -39,11 +39,11 @@ export function RecurringView({ rules, categories, today }: { rules: RecurringEx
         </Button>
       </div>
       {rules.length === 0 ? (
-        <div className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-dashed bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
           Nicio cheltuială recurentă.
         </div>
       ) : (
-        <div className="divide-y rounded-lg border">
+        <div className="surface divide-y">
           {rules.map((r) => {
             const ended = r.end_month !== null && r.end_month < today.slice(0, 8) + "01";
             return (

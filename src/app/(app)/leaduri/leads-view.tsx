@@ -12,6 +12,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { fold, formatPhone, websiteHref, websiteLabel } from "@/lib/leads/normalize";
 import type { Lead } from "@/lib/leads/types";
 import type { LeadSource, LeadStatus } from "@/lib/types";
+import { dropSearchParam } from "@/lib/url";
 import { cn } from "@/lib/utils";
 import { updateLead } from "./actions";
 import { AddLeadDialog } from "./add-lead-dialog";
@@ -67,7 +68,8 @@ export function LeadsView({
   const [page, setPage] = useState(0);
   // ?lead=<id> deschide direct fișa (link din calendar / proiect).
   const [openId, setOpenId] = useState<string | null>(() => searchParams.get("lead"));
-  const [addOpen, setAddOpen] = useState(false);
+  // ?nou=1 (din butonul „+” / ⌘K) deschide direct formularul.
+  const [addOpen, setAddOpen] = useState(() => searchParams.get("nou") === "1");
   const [, startTransition] = useTransition();
 
   // Dacă serverul trimite date noi (ex. după import), le preluăm.
@@ -295,10 +297,10 @@ export function LeadsView({
       </div>
 
       {/* Tabel */}
-      <div className="overflow-hidden rounded-lg border">
+      <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr className="[&>th]:h-9 [&>th]:px-2 [&>th]:text-left [&>th]:font-medium [&>th]:whitespace-nowrap">
                 <SortHeader
                   label="Companie"
@@ -324,7 +326,13 @@ export function LeadsView({
                 const status = statusById.get(lead.status_id);
                 const state = followUpState(lead.follow_up_date, status?.is_closed ?? false, today);
                 const href = websiteHref(lead.website);
-                const rowTone = state === "overdue" ? "bg-danger-soft" : state === "today" ? "bg-warning-soft" : "bg-background";
+                // Culori opace (amestec cu fundalul cardului), ca prima coloană fixă să nu lase textul să se vadă prin ea.
+                const rowTone =
+                  state === "overdue"
+                    ? "bg-[color-mix(in_oklab,var(--danger-soft)_60%,var(--card))]"
+                    : state === "today"
+                      ? "bg-[color-mix(in_oklab,var(--warning-soft)_75%,var(--card))]"
+                      : "bg-card";
                 return (
                   <tr key={lead.id} className={cn("group border-t [&>td]:px-1 [&>td]:py-1 [&>td]:align-middle", rowTone)}>
                     <td className={cn("sticky left-0 z-10 max-w-64", rowTone)}>
@@ -481,7 +489,10 @@ export function LeadsView({
 
       <AddLeadDialog
         open={addOpen}
-        onOpenChange={setAddOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open);
+          if (!open) dropSearchParam("nou");
+        }}
         statuses={statuses}
         sources={sources}
         defaultStatusId={tab !== ALL ? tab : undefined}

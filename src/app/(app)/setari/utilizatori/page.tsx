@@ -32,7 +32,7 @@ export default async function UsersSettingsPage() {
           </>
         }
       >
-        <div className="divide-y rounded-lg border">
+        <div className="surface divide-y">
           {(users ?? []).map((user) => (
             <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">

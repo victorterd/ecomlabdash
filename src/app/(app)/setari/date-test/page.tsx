@@ -16,7 +16,7 @@ export default async function TestDataPage() {
       title="Date de test"
       description="Generează date fictive ca să vezi aplicația populată. Sunt marcate cu eticheta „test” și se șterg cu un singur click, fără să atingă datele tale reale."
     >
-      <div className="grid gap-3 rounded-lg border p-4">
+      <div className="surface grid gap-3 p-4 sm:p-5">
         <p className="text-sm">
           Acum există <b>{count ?? 0}</b> lead-uri și <b>{projectCount ?? 0}</b> proiecte de test (cu actori, filmări, tranșe și costuri).
         </p>

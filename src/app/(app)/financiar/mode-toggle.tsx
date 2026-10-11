@@ -36,7 +36,7 @@ export function YearModeBar({
           href={href(year, false)}
           className={cn(
             "rounded-md px-2.5 py-1 font-medium text-muted-foreground",
-            !withPlanned && "bg-background text-foreground shadow-sm",
+            !withPlanned && "bg-card text-foreground shadow-sm",
           )}
         >
           Realizat
@@ -45,7 +45,7 @@ export function YearModeBar({
           href={href(year, true)}
           className={cn(
             "rounded-md px-2.5 py-1 font-medium text-muted-foreground",
-            withPlanned && "bg-background text-foreground shadow-sm",
+            withPlanned && "bg-card text-foreground shadow-sm",
           )}
         >
           Realizat + planificat

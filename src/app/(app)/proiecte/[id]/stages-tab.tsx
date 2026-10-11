@@ -38,15 +38,15 @@ export function StagesTab({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       <p className="text-sm text-muted-foreground">
         Termen planificat pentru fiecare etapă și data la care s-a terminat. O etapă cu termenul depășit și nerealizată marchează proiectul
         cu roșu. Când muți proiectul pe un stadiu nou, etapele dinainte primesc automat data de azi.
       </p>
-      <div className="overflow-hidden rounded-lg border">
+      <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr className="[&>th]:h-9 [&>th]:px-3 [&>th]:text-left [&>th]:font-medium [&>th]:whitespace-nowrap">
                 <th>Etapă</th>
                 <th>Termen planificat</th>

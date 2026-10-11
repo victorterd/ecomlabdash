@@ -1,10 +1,11 @@
-import Link from "next/link";
 import Decimal from "decimal.js";
 import { format, parseISO } from "date-fns";
 import { ro } from "date-fns/locale";
 import { balanceAt, lastDayOfMonth, monthKey, monthlyTotals, monthRange, type PnL } from "@/lib/finance/calc";
 import { fetchFinanceSettings, fetchTransactions } from "@/lib/finance/queries";
 import { formatDate, formatRON, todayISO, toDecimal, formatAmount } from "@/lib/format";
+import { ArrowDownLeftIcon, ArrowUpRightIcon, HourglassIcon, ReceiptIcon, TrendingUpIcon, WalletIcon } from "lucide-react";
+import { StatCard } from "@/components/stat-card";
 import { cn } from "@/lib/utils";
 import { FinanceCharts } from "./finance-charts";
 import { parseYearMode, YearModeBar } from "./mode-toggle";
@@ -60,37 +61,41 @@ export default async function FinanceOverviewPage({ searchParams }: PageProps<"/
 
   return (
     <div className="grid gap-6">
-      <section className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="Sold curent" value={formatRON(kpi.balance)} hint={`din ${formatDate(settings.opening_balance_date)}`} strong />
-        <Kpi label="Încasat luna asta" value={formatRON(kpi.received)} />
-        <Kpi label="Cheltuit luna asta" value={formatRON(kpi.spent)} />
-        <Kpi
-          label="De încasat (până la final de lună)"
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <StatCard icon={WalletIcon} label="Sold curent" value={formatRON(kpi.balance)} hint={`de la ${formatDate(settings.opening_balance_date)}`} accent />
+        <StatCard icon={ArrowDownLeftIcon} label="Încasat luna asta" value={formatRON(kpi.received)} tone="good" />
+        <StatCard icon={ArrowUpRightIcon} label="Cheltuit luna asta" value={formatRON(kpi.spent)} />
+        <StatCard
+          icon={HourglassIcon}
+          label="De încasat"
           value={formatRON(kpi.toReceive)}
-          hint={overdueIncome ? `${overdueIncome} restante` : undefined}
+          hint={overdueIncome ? `${overdueIncome} restante` : "până la final de lună"}
           tone={overdueIncome ? "warn" : undefined}
           href="/financiar/plati"
         />
-        <Kpi
-          label="De plătit (până la final de lună)"
+        <StatCard
+          icon={ReceiptIcon}
+          label="De plătit"
           value={formatRON(kpi.toPay)}
-          hint={overdueExpense ? `${overdueExpense} restante` : undefined}
+          hint={overdueExpense ? `${overdueExpense} restante` : "până la final de lună"}
           tone={overdueExpense ? "warn" : undefined}
           href="/financiar/plati"
         />
-        <Kpi
-          label="Sold estimat la final de lună"
+        <StatCard
+          icon={TrendingUpIcon}
+          label="Sold estimat"
           value={formatRON(kpi.endOfMonth)}
+          hint="la final de lună"
           tone={kpi.endOfMonth.isNegative() ? "bad" : undefined}
         />
       </section>
 
       <YearModeBar basePath="/financiar" year={year} withPlanned={withPlanned} />
 
-      <section className="overflow-hidden rounded-lg border">
+      <section className="surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr className="[&>th]:h-9 [&>th]:px-3 [&>th]:text-right [&>th]:font-medium [&>th]:whitespace-nowrap">
                 <th className="sticky left-0 z-10 bg-muted text-left!">{withPlanned ? "Realizat + planificat" : "Realizat"}</th>
                 {totals.months.map((m) => (
@@ -110,7 +115,7 @@ export default async function FinanceOverviewPage({ searchParams }: PageProps<"/
                     row.strong && "font-semibold",
                   )}
                 >
-                  <td className="sticky left-0 z-10 bg-background text-left! font-medium" title={row.hint}>
+                  <td className="sticky left-0 z-10 bg-card text-left! font-medium" title={row.hint}>
                     {row.label}
                   </td>
                   {totals.months.map((m) => (
@@ -120,7 +125,7 @@ export default async function FinanceOverviewPage({ searchParams }: PageProps<"/
                 </tr>
               ))}
               <tr className="border-t-2 font-semibold [&>td]:px-3 [&>td]:py-1.5 [&>td]:text-right [&>td]:whitespace-nowrap [&>td]:tabular-nums">
-                <td className="sticky left-0 z-10 bg-background text-left!">Sold la final de lună</td>
+                <td className="sticky left-0 z-10 bg-card text-left!">Sold la final de lună</td>
                 {totals.months.map((m) => (
                   <MoneyCell key={m.month} value={m.endBalance} highlight={m.month === currentMonth} />
                 ))}
@@ -156,37 +161,4 @@ function MoneyCell({ value, muted, highlight, className }: { value: Decimal; mut
       {value.isZero() ? "0" : formatAmount(value)}
     </td>
   );
-}
-
-function Kpi({
-  label,
-  value,
-  hint,
-  strong,
-  tone,
-  href,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  strong?: boolean;
-  tone?: "warn" | "bad";
-  href?: string;
-}) {
-  const body = (
-    <div
-      className={cn(
-        "grid h-full content-start gap-1 rounded-xl border p-3 sm:p-4",
-        strong && "border-brand/40 bg-accent/50",
-        tone === "warn" && "border-warning/40 bg-warning-soft",
-        tone === "bad" && "border-destructive/40 bg-danger-soft",
-        href && "hover:bg-muted/50",
-      )}
-    >
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-base font-semibold tabular-nums sm:text-xl">{value}</span>
-      {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
-    </div>
-  );
-  return href ? <Link href={href}>{body}</Link> : body;
 }

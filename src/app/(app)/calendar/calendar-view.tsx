@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { addDays, format, parseISO } from "date-fns";
 import { ro } from "date-fns/locale";
 import { CalendarPlusIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatTime } from "@/lib/format";
 import type { Actor, Shoot } from "@/lib/projects/types";
+import { dropSearchParam } from "@/lib/url";
 import { cn } from "@/lib/utils";
 
 export type CalendarEvent = {
@@ -68,11 +69,13 @@ export function CalendarView({
   const router = useRouter();
   const kinds: Kind[] = showFollowUps ? ["shoot", "deadline", "stage", "followup"] : ["shoot", "deadline", "stage"];
   const [enabled, setEnabled] = useState<Record<Kind, boolean>>({ shoot: true, deadline: true, stage: true, followup: true });
-  const [dialog, setDialog] = useState<{ open: boolean; shoot: Shoot | null; date: string | null }>({
-    open: false,
+  const searchParams = useSearchParams();
+  // ?nou=1 (din butonul „+” / ⌘K) deschide direct formularul de filmare.
+  const [dialog, setDialog] = useState<{ open: boolean; shoot: Shoot | null; date: string | null }>(() => ({
+    open: searchParams.get("nou") === "1",
     shoot: null,
-    date: null,
-  });
+    date: today,
+  }));
 
   // Filtrele se păstrează în browser.
   useEffect(() => {
@@ -163,7 +166,7 @@ export function CalendarView({
               href={href(anchor, v)}
               className={cn(
                 "rounded-md px-2.5 py-1 text-sm font-medium text-muted-foreground",
-                view === v && "bg-background text-foreground shadow-sm",
+                view === v && "bg-card text-foreground shadow-sm",
               )}
             >
               {v === "luna" ? "Lună" : "Săptămână"}
@@ -187,7 +190,7 @@ export function CalendarView({
       </div>
 
       {/* Grilă (tabletă / desktop) */}
-      <div className="hidden overflow-hidden rounded-lg border md:block">
+      <div className="surface hidden overflow-hidden md:block">
         <div className="grid grid-cols-7 border-b bg-muted/50 text-xs font-medium text-muted-foreground">
           {WEEKDAYS.map((d) => (
             <div key={d} className="px-2 py-1.5">
@@ -219,7 +222,7 @@ export function CalendarView({
                     className={cn(
                       "inline-flex size-6 items-center justify-center rounded-full text-xs tabular-nums",
                       outside && "text-muted-foreground",
-                      day === today && "bg-brand font-semibold text-primary-foreground",
+                      day === today && "bg-brand font-semibold text-brand-foreground",
                     )}
                   >
                     {Number(day.slice(8))}
@@ -261,7 +264,10 @@ export function CalendarView({
 
       <ShootDialog
         open={dialog.open}
-        onOpenChange={(open) => setDialog((d) => ({ ...d, open }))}
+        onOpenChange={(open) => {
+          setDialog((d) => ({ ...d, open }));
+          if (!open) dropSearchParam("nou");
+        }}
         shoot={dialog.shoot}
         defaultDate={dialog.date}
         projects={projects}

@@ -100,10 +100,10 @@ export function ListEditor({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div className="surface overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-xs text-muted-foreground">
+          <thead className="table-head">
             <tr>
               <th className="w-16 px-2 py-2 text-left font-medium">Ordine</th>
               <th className="min-w-44 px-2 py-2 text-left font-medium">Nume</th>
@@ -208,7 +208,7 @@ export function ListEditor({
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder={addPlaceholder}
-          className="h-8 max-w-xs bg-background"
+          className="h-8 max-w-xs bg-card"
         />
         <Button type="submit" size="sm" variant="outline" disabled={!newName.trim()}>
           <PlusIcon /> Adaugă

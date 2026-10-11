@@ -51,10 +51,10 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/finan
   return (
     <div className="grid gap-4">
       <YearModeBar basePath="/financiar/categorii" year={year} withPlanned={withPlanned} />
-      <div className="overflow-hidden rounded-lg border">
+      <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr className="[&>th]:h-9 [&>th]:px-3 [&>th]:text-right [&>th]:font-medium [&>th]:whitespace-nowrap">
                 <th className="sticky left-0 z-10 bg-muted text-left!">Categorie</th>
                 {months.map((m) => (
@@ -71,7 +71,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/finan
                   key={r.id}
                   className="border-t [&>td]:px-3 [&>td]:py-1.5 [&>td]:text-right [&>td]:whitespace-nowrap [&>td]:tabular-nums"
                 >
-                  <td className="sticky left-0 z-10 bg-background text-left!">
+                  <td className="sticky left-0 z-10 bg-card text-left!">
                     <span className="inline-flex items-center gap-2 font-medium">
                       <span className="size-2 rounded-full" style={{ backgroundColor: r.color }} />
                       {r.name}
@@ -86,7 +86,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/finan
                   key={scope}
                   className="border-t text-muted-foreground [&>td]:px-3 [&>td]:py-1.5 [&>td]:text-right [&>td]:whitespace-nowrap [&>td]:tabular-nums"
                 >
-                  <td className="sticky left-0 z-10 bg-background text-left!">
+                  <td className="sticky left-0 z-10 bg-card text-left!">
                     din care {scope === "business" ? "business" : "personale"}
                   </td>
                   {months.map((m) => cell(scopeTotals[scope].get(m), m === currentMonth, m))}
@@ -94,7 +94,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/finan
                 </tr>
               ))}
               <tr className="border-t-2 font-semibold [&>td]:px-3 [&>td]:py-1.5 [&>td]:text-right [&>td]:whitespace-nowrap [&>td]:tabular-nums">
-                <td className="sticky left-0 z-10 bg-background text-left!">Total cheltuieli</td>
+                <td className="sticky left-0 z-10 bg-card text-left!">Total cheltuieli</td>
                 {months.map((m) => cell(allTotal(m), m === currentMonth, m))}
                 <td className="border-l bg-muted/30">
                   {formatAmount(rowTotal(scopeTotals.business).plus(rowTotal(scopeTotals.personal)))}

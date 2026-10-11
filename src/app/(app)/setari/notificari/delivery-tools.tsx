@@ -91,7 +91,7 @@ export function PushDevice({ serverConfigured }: { serverConfigured: boolean }) 
   if (!serverConfigured || !VAPID_PUBLIC_KEY) return <VapidGenerator />;
 
   return (
-    <div className="grid gap-3 rounded-lg border p-4">
+    <div className="surface grid gap-3 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm">
           <p className="font-medium">Pe acest dispozitiv</p>
@@ -152,7 +152,7 @@ function VapidGenerator() {
         browserul tău, nu se salvează nicăieri):
       </p>
       {!keys ? (
-        <Button size="sm" variant="outline" className="w-fit bg-background" onClick={generate}>
+        <Button size="sm" variant="outline" className="w-fit bg-card" onClick={generate}>
           <KeyRoundIcon /> Generează chei VAPID
         </Button>
       ) : (
@@ -165,11 +165,11 @@ function VapidGenerator() {
             <div key={name} className="grid gap-1">
               <code className="text-xs font-semibold">{name}</code>
               <div className="flex gap-2">
-                <code className="flex-1 truncate rounded bg-background px-2 py-1.5 text-xs">{value}</code>
+                <code className="flex-1 truncate rounded bg-card px-2 py-1.5 text-xs">{value}</code>
                 <Button
                   size="icon-sm"
                   variant="outline"
-                  className="bg-background"
+                  className="bg-card"
                   onClick={() => copy(value!)}
                   aria-label={`Copiază ${name}`}
                 >

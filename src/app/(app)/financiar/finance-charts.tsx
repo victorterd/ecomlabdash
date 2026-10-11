@@ -44,7 +44,7 @@ export function FinanceCharts({ data, currentMonth }: { data: Point[]; currentMo
   return (
     <section className="fin-charts grid gap-4 lg:grid-cols-2">
       <style>{COLORS}</style>
-      <div className="rounded-xl border p-4">
+      <div className="surface p-4 sm:p-5">
         <h3 className="mb-3 text-sm font-semibold">Venituri vs. cheltuieli pe luni</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -75,7 +75,7 @@ export function FinanceCharts({ data, currentMonth }: { data: Point[]; currentMo
           </ResponsiveContainer>
         </div>
       </div>
-      <div className="rounded-xl border p-4">
+      <div className="surface p-4 sm:p-5">
         <h3 className="mb-3 text-sm font-semibold">Evoluția soldului (final de lună)</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">

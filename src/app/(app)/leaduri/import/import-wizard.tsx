@@ -275,7 +275,7 @@ export function ImportWizard({ statuses, sources }: { statuses: LeadStatus[]; so
   if (step === "upload") {
     return (
       <div
-        className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-6 py-16 text-center"
+        className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed bg-card/60 px-6 py-16 text-center"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
@@ -341,9 +341,9 @@ export function ImportWizard({ statuses, sources }: { statuses: LeadStatus[]; so
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border">
+        <div className="surface overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Câmp în CRM</th>
                 <th className="px-3 py-2 text-left font-medium">Coloană din fișier</th>
@@ -395,7 +395,7 @@ export function ImportWizard({ statuses, sources }: { statuses: LeadStatus[]; so
               <h3 className="text-base font-semibold">2. Potrivește statusurile</h3>
               <p className="text-sm text-muted-foreground">Fiecare valoare din coloana de status devine unul dintre statusurile tale.</p>
             </div>
-            <div className="divide-y rounded-lg border">
+            <div className="surface divide-y">
               {statusValues.map((value) => {
                 const auto = value && statuses.some((s) => fold(s.name) === fold(value));
                 return (
@@ -437,7 +437,7 @@ export function ImportWizard({ statuses, sources }: { statuses: LeadStatus[]; so
             <h3 className="text-base font-semibold">{mapping.status !== null ? "3" : "2"}. Sursă și opțiuni</h3>
           </div>
           {mapping.source !== null ? (
-            <div className="divide-y rounded-lg border">
+            <div className="surface divide-y">
               {sourceValues.map((value) => (
                 <div key={value} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
                   <span className="text-sm">
@@ -535,10 +535,10 @@ export function ImportWizard({ statuses, sources }: { statuses: LeadStatus[]; so
             Importă {included} {included === 1 ? "lead" : "lead-uri"}
           </Button>
         </div>
-        <div className="overflow-hidden rounded-lg border">
+        <div className="surface overflow-hidden">
           <div className="max-h-[60vh] overflow-auto">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-muted text-xs text-muted-foreground">
+              <thead className="table-head sticky top-0 z-10 bg-muted">
                 <tr className="[&>th]:px-2 [&>th]:py-2 [&>th]:text-left [&>th]:font-medium [&>th]:whitespace-nowrap">
                   <th className="w-8">
                     <Checkbox
@@ -633,7 +633,7 @@ export function ImportWizard({ statuses, sources }: { statuses: LeadStatus[]; so
         <Stat label="erori" value={report?.errors.length ?? 0} tone={report?.errors.length ? "bad" : undefined} />
       </div>
       {report?.errors.length ? (
-        <div className="max-h-60 overflow-auto rounded-lg border p-3 text-sm">
+        <div className="surface max-h-60 overflow-auto p-3 text-sm">
           {report.errors.map((e, i) => (
             <p key={i}>
               <span className="text-muted-foreground">Rândul {e.row}:</span> {e.error}

@@ -149,7 +149,7 @@ function FinancePanel({
   );
 
   return (
-    <aside className="grid content-start gap-4 rounded-xl border p-4">
+    <aside className="surface grid content-start gap-4 p-4 sm:p-5">
       <h2 className="text-sm font-semibold">Bani</h2>
       <div className="grid gap-1.5">
         <Label className="text-xs text-muted-foreground">Valoare contract</Label>

@@ -26,7 +26,7 @@ export function LoginForm({ next }: { next?: string }) {
           {state.error}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending} className="mt-1">
+      <Button type="submit" size="lg" disabled={pending} className="mt-2 w-full">
         {pending ? <Loader2Icon className="animate-spin" /> : null}
         Intră în cont
       </Button>

@@ -45,7 +45,7 @@ export function InlineText({
         aria-label={label}
         defaultValue={value ?? ""}
         className={cn(
-          "h-7 w-full min-w-28 rounded border border-ring bg-background px-1.5 text-sm outline-none ring-[3px] ring-ring/30",
+          "h-7 w-full min-w-28 rounded border border-ring bg-card px-1.5 text-sm outline-none ring-[3px] ring-ring/30",
           inputClassName,
         )}
         onBlur={(e) => {

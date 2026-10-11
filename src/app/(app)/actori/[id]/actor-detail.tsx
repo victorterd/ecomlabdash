@@ -121,10 +121,10 @@ export function ActorDetail({
         {projects.length === 0 ? (
           <p className="text-sm text-muted-foreground">Încă nu a jucat în niciun proiect.</p>
         ) : (
-          <div className="overflow-hidden rounded-lg border">
+          <div className="surface overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs text-muted-foreground">
+                <thead className="table-head">
                   <tr className="[&>th]:h-9 [&>th]:px-3 [&>th]:text-left [&>th]:font-medium">
                     <th>Proiect</th>
                     <th>Rol</th>

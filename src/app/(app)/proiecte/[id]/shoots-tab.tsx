@@ -37,7 +37,7 @@ export function ShootsTab({
   );
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <div>
         <Button
           onClick={() => {
@@ -49,7 +49,7 @@ export function ShootsTab({
         </Button>
       </div>
       {sorted.length === 0 ? (
-        <div className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-dashed bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
           Nicio zi de filmare programată.
         </div>
       ) : (

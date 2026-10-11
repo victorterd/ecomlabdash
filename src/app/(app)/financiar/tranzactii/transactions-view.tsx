@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Decimal from "decimal.js";
 import { format, parseISO } from "date-fns";
 import { ro } from "date-fns/locale";
@@ -15,6 +15,7 @@ import type { TransactionRow } from "@/lib/finance/queries";
 import { formatDate, formatRON, toDecimal } from "@/lib/format";
 import { fold } from "@/lib/leads/normalize";
 import type { ExpenseCategory } from "@/lib/types";
+import { dropSearchParam } from "@/lib/url";
 import { cn } from "@/lib/utils";
 import { setTransactionStatus } from "../actions";
 import { KIND_LABEL, TransactionDialog, type ProjectOption } from "../transaction-dialog";
@@ -41,10 +42,11 @@ export function TransactionsView({
   const [category, setCategory] = useState(ALL);
   const [scope, setScope] = useState(ALL);
   const [search, setSearch] = useState("");
-  const [dialog, setDialog] = useState<{ open: boolean; tx: TransactionRow | null; type: "income" | "expense" }>({
-    open: false,
-    tx: null,
-    type: "expense",
+  const searchParams = useSearchParams();
+  // ?nou=cheltuiala | incasare (din butonul „+” / ⌘K) deschide direct formularul.
+  const [dialog, setDialog] = useState<{ open: boolean; tx: TransactionRow | null; type: "income" | "expense" }>(() => {
+    const nou = searchParams.get("nou");
+    return { open: nou === "cheltuiala" || nou === "incasare", tx: null, type: nou === "incasare" ? "income" : "expense" };
   });
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
@@ -157,10 +159,10 @@ export function TransactionsView({
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <thead className="table-head">
               <tr className="[&>th]:h-9 [&>th]:px-3 [&>th]:text-left [&>th]:font-medium [&>th]:whitespace-nowrap">
                 <th>Data</th>
                 <th>Descriere</th>
@@ -275,7 +277,10 @@ export function TransactionsView({
 
       <TransactionDialog
         open={dialog.open}
-        onOpenChange={(open) => setDialog((d) => ({ ...d, open }))}
+        onOpenChange={(open) => {
+          setDialog((d) => ({ ...d, open }));
+          if (!open) dropSearchParam("nou");
+        }}
         transaction={dialog.tx}
         defaultType={dialog.type}
         categories={categories}
