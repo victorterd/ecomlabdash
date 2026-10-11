@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowRightIcon, ClapperboardIcon, ExternalLinkIcon, MailIcon, PhoneIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDeleteDialog } from "@/components/confirm-dialog";
 import { DateField } from "@/components/date-field";
 import { ColorBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,7 @@ function LeadDetails({
 }) {
   const [history, setHistory] = useState<StatusHistoryEntry[] | null>(null);
   const [deleting, startDelete] = useTransition();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const status = statuses.find((s) => s.id === lead.status_id);
   const statusById = new Map(statuses.map((s) => [s.id, s]));
   const state = followUpState(lead.follow_up_date, status?.is_closed ?? false, today);
@@ -128,7 +130,17 @@ function LeadDetails({
 
   return (
     <>
-      <SheetHeader className="border-b">
+      <SheetHeader className="relative border-b pr-20">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-2.5 right-10 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          aria-label="Șterge lead"
+          title="Șterge lead"
+          onClick={() => setConfirmDelete(true)}
+        >
+          <Trash2Icon />
+        </Button>
         <SheetTitle className="text-lg leading-snug">{lead.company_name}</SheetTitle>
         <SheetDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {lead.phone1 ? (
@@ -293,22 +305,35 @@ function LeadDetails({
             variant="ghost"
             size="sm"
             className="text-destructive hover:bg-destructive/10"
-            disabled={deleting}
-            onClick={() => {
-              if (!confirm(`Ștergi lead-ul „${lead.company_name}”? Acțiunea nu poate fi anulată.`)) return;
-              startDelete(async () => {
-                const result = await deleteLead(lead.id);
-                if (result.ok) {
-                  toast.success("Lead șters");
-                  onDeleted(lead.id);
-                } else toast.error(result.error);
-              });
-            }}
+            onClick={() => setConfirmDelete(true)}
           >
             <Trash2Icon /> Șterge lead
           </Button>
         </div>
       </div>
+
+      <ConfirmDeleteDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Ștergi lead-ul?"
+        description={
+          <>
+            <b className="text-foreground">{lead.company_name}</b> și istoricul lui de status vor fi șterse definitiv.
+          </>
+        }
+        confirmLabel="Șterge lead"
+        pending={deleting}
+        onConfirm={() =>
+          startDelete(async () => {
+            const result = await deleteLead(lead.id);
+            if (result.ok) {
+              setConfirmDelete(false);
+              toast.success("Lead șters");
+              onDeleted(lead.id);
+            } else toast.error(result.error);
+          })
+        }
+      />
     </>
   );
 }

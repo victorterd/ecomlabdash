@@ -3,8 +3,9 @@
 import { useCallback, useDeferredValue, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, DownloadIcon, PlusIcon, SearchIcon, UploadIcon, XIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, DownloadIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDeleteDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +15,7 @@ import type { Lead } from "@/lib/leads/types";
 import type { LeadSource, LeadStatus } from "@/lib/types";
 import { dropSearchParam } from "@/lib/url";
 import { cn } from "@/lib/utils";
-import { updateLead } from "./actions";
+import { deleteLead, updateLead } from "./actions";
 import { AddLeadDialog } from "./add-lead-dialog";
 import { FollowUpCell, followUpState, InlineText, SourceMenu, StatusMenu } from "./cells";
 import { exportLeadsCsv } from "./export";
@@ -33,6 +34,7 @@ const FOLLOW_LABELS: Record<FollowFilter, string> = {
 
 const PAGE_SIZE = 100;
 const ALL = "all";
+const NO_SOURCE = "none";
 
 export function LeadsView({
   initialLeads,
@@ -59,7 +61,10 @@ export function LeadsView({
   });
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
-  const [sourceFilter, setSourceFilter] = useState(ALL);
+  const [sourceFilter, setSourceFilterState] = useState(() => {
+    const fromUrl = searchParams.get("sursa");
+    return fromUrl && (fromUrl === NO_SOURCE || sources.some((s) => s.id === fromUrl)) ? fromUrl : ALL;
+  });
   const [followFilter, setFollowFilter] = useState<FollowFilter>(() => {
     const fromUrl = searchParams.get("follow");
     return fromUrl === "due" || fromUrl === "today" || fromUrl === "week" || fromUrl === "none" ? fromUrl : "all";
@@ -71,6 +76,8 @@ export function LeadsView({
   // ?nou=1 (din butonul „+” / ⌘K) deschide direct formularul.
   const [addOpen, setAddOpen] = useState(() => searchParams.get("nou") === "1");
   const [, startTransition] = useTransition();
+  const [toDelete, setToDelete] = useState<Lead | null>(null);
+  const [deleting, startDelete] = useTransition();
 
   // Dacă serverul trimite date noi (ex. după import), le preluăm.
   const [prevInitial, setPrevInitial] = useState(initialLeads);
@@ -91,6 +98,15 @@ export function LeadsView({
     window.history.replaceState(null, "", url);
   }
 
+  function setSourceFilter(value: string) {
+    setSourceFilterState(value);
+    setPage(0);
+    const url = new URL(window.location.href);
+    if (value === ALL) url.searchParams.delete("sursa");
+    else url.searchParams.set("sursa", value);
+    window.history.replaceState(null, "", url);
+  }
+
   const searchIndex = useMemo(
     () =>
       new Map(
@@ -106,8 +122,8 @@ export function LeadsView({
     [leads],
   );
 
-  // Filtrele (fără tab) — din ele se calculează și numerele de pe taburi.
-  const filtered = useMemo(() => {
+  // Căutarea și filtrul de follow-up (fără taburi) — din ele se calculează numerele de pe taburi.
+  const baseFiltered = useMemo(() => {
     const terms = fold(deferredSearch).split(/\s+/).filter(Boolean);
     // Căutarea după telefon ignoră spațiile: „0726 754” găsește „0726754999”.
     const digits = deferredSearch.replace(/\D/g, "");
@@ -118,7 +134,6 @@ export function LeadsView({
         const phoneMatch = digits.length >= 4 && `${l.phone1 ?? ""} ${l.phone2 ?? ""}`.replace(/\D/g, "").includes(digits);
         if (!textMatch && !phoneMatch) return false;
       }
-      if (sourceFilter !== ALL && (sourceFilter === "none" ? l.source_id !== null : l.source_id !== sourceFilter)) return false;
       if (followFilter !== "all") {
         const d = l.follow_up_date;
         const closed = statusById.get(l.status_id)?.is_closed ?? false;
@@ -130,7 +145,27 @@ export function LeadsView({
       }
       return true;
     });
-  }, [leads, deferredSearch, searchIndex, sourceFilter, followFilter, statusById, today, weekEnd]);
+  }, [leads, deferredSearch, searchIndex, followFilter, statusById, today, weekEnd]);
+
+  const matchesSource = useCallback(
+    (l: Lead, source: string) => source === ALL || (source === NO_SOURCE ? l.source_id === null : l.source_id === source),
+    [],
+  );
+  const filtered = useMemo(() => baseFiltered.filter((l) => matchesSource(l, sourceFilter)), [baseFiltered, matchesSource, sourceFilter]);
+
+  // Numărul pe fiecare sursă, în tabul de status ales.
+  const sourceCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of baseFiltered) {
+      if (tab !== ALL && l.status_id !== tab) continue;
+      const key = l.source_id ?? NO_SOURCE;
+      map.set(key, (map.get(key) ?? 0) + 1);
+      map.set(ALL, (map.get(ALL) ?? 0) + 1);
+    }
+    return map;
+  }, [baseFiltered, tab]);
+  // Sursele inactive apar doar dacă au lead-uri.
+  const sourceTabs = sources.filter((s) => s.active || (sourceCounts.get(s.id) ?? 0) > 0 || sourceFilter === s.id);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
@@ -192,7 +227,20 @@ export function LeadsView({
     );
   }
 
-  const hasFilters = search || sourceFilter !== ALL || followFilter !== "all";
+  const hasFilters = search || followFilter !== "all";
+
+  function confirmDelete() {
+    const lead = toDelete;
+    if (!lead) return;
+    startDelete(async () => {
+      const result = await deleteLead(lead.id);
+      if (result.ok) {
+        setLeads((current) => current.filter((l) => l.id !== lead.id));
+        setToDelete(null);
+        toast.success("Lead șters");
+      } else toast.error(result.error);
+    });
+  }
   const openLead = openId ? (leads.find((l) => l.id === openId) ?? null) : null;
 
   return (
@@ -214,6 +262,30 @@ export function LeadsView({
         </div>
       </div>
 
+      {/* Taburi pe sursă */}
+      <div className="-mx-3 -mt-1 overflow-x-auto px-3 sm:mx-0 sm:px-0">
+        <div className="flex w-max items-center gap-1.5">
+          <SourceTab active={sourceFilter === ALL} onClick={() => setSourceFilter(ALL)} label="Toate sursele" count={sourceCounts.get(ALL) ?? 0} />
+          {sourceTabs.map((s) => (
+            <SourceTab
+              key={s.id}
+              active={sourceFilter === s.id}
+              onClick={() => setSourceFilter(s.id)}
+              label={s.name}
+              count={sourceCounts.get(s.id) ?? 0}
+            />
+          ))}
+          {(sourceCounts.get(NO_SOURCE) ?? 0) > 0 || sourceFilter === NO_SOURCE ? (
+            <SourceTab
+              active={sourceFilter === NO_SOURCE}
+              onClick={() => setSourceFilter(NO_SOURCE)}
+              label="Fără sursă"
+              count={sourceCounts.get(NO_SOURCE) ?? 0}
+            />
+          ) : null}
+        </div>
+      </div>
+
       {/* Filtre și acțiuni */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full sm:w-72">
@@ -228,29 +300,6 @@ export function LeadsView({
             className="pl-8"
           />
         </div>
-        <Select
-          value={sourceFilter}
-          onValueChange={(v) => {
-            setSourceFilter(v);
-            setPage(0);
-          }}
-        >
-          <SelectTrigger className="w-auto min-w-36">
-            {/* Text explicit: Radix nu afișează valoarea la randarea pe server. */}
-            <SelectValue>
-              {sourceFilter === ALL ? "Toate sursele" : sourceFilter === "none" ? "Fără sursă" : sourceById.get(sourceFilter)?.name}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Toate sursele</SelectItem>
-            {sources.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-            <SelectItem value="none">Fără sursă</SelectItem>
-          </SelectContent>
-        </Select>
         <Select
           value={followFilter}
           onValueChange={(v) => {
@@ -275,7 +324,6 @@ export function LeadsView({
             size="sm"
             onClick={() => {
               setSearch("");
-              setSourceFilter(ALL);
               setFollowFilter("all");
             }}
           >
@@ -346,6 +394,15 @@ export function LeadsView({
                           {lead.company_name}
                         </button>
                         {lead.is_seed ? <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">test</span> : null}
+                        <button
+                          type="button"
+                          onClick={() => setToDelete(lead)}
+                          className="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
+                          aria-label={`Șterge ${lead.company_name}`}
+                          title="Șterge lead"
+                        >
+                          <Trash2Icon className="size-3.5" />
+                        </button>
                       </div>
                     </td>
                     <td className="max-w-44">
@@ -487,6 +544,22 @@ export function LeadsView({
         }}
       />
 
+      <ConfirmDeleteDialog
+        open={toDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setToDelete(null);
+        }}
+        title="Ștergi lead-ul?"
+        description={
+          <>
+            <b className="text-foreground">{toDelete?.company_name}</b> și istoricul lui de status vor fi șterse definitiv.
+          </>
+        }
+        confirmLabel="Șterge lead"
+        pending={deleting}
+        onConfirm={confirmDelete}
+      />
+
       <AddLeadDialog
         open={addOpen}
         onOpenChange={(open) => {
@@ -536,6 +609,23 @@ function TabButton({
       <span className={cn("rounded-full bg-muted px-1.5 text-[11px] leading-5 tabular-nums", active && "bg-accent text-accent-foreground")}>
         {count}
       </span>
+    </button>
+  );
+}
+
+function SourceTab({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex h-8 items-center gap-1.5 rounded-full border bg-card px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground",
+        active && "border-primary bg-primary text-primary-foreground hover:border-primary hover:text-primary-foreground",
+      )}
+    >
+      {label}
+      <span className={cn("text-xs tabular-nums opacity-60", active && "opacity-80")}>{count}</span>
     </button>
   );
 }

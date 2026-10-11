@@ -42,6 +42,7 @@ Când apare o migrație nouă în `supabase/migrations/`, rulează doar fișieru
 | `20261010000002_leads.sql` | 2 |
 | `20261011000003_projects.sql` | 3 |
 | `20261012000004_finance.sql` | 4 |
+| `20261013000005_leads_order.sql` | ordinea taburilor la Lead-uri |
 
 ### Remindere și notificări (Etapa 5)
 
