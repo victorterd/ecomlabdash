@@ -4,7 +4,8 @@ import { ArrowLeftIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireProfile } from "@/lib/auth";
 import { todayISO } from "@/lib/format";
-import { fetchStages } from "@/lib/projects/queries";
+import { MigrationNeeded } from "@/components/layout/migration-needed";
+import { fetchServices } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import type { FinanceSettings } from "@/lib/types";
 import { ProjectForm, type ProjectPrefill } from "./project-form";
@@ -18,8 +19,8 @@ export default async function NewProjectPage({ searchParams }: PageProps<"/proie
   const { lead: leadId } = await searchParams;
 
   const supabase = await createClient();
-  const [stages, financeSettings, lead] = await Promise.all([
-    fetchStages(),
+  const [services, financeSettings, lead] = await Promise.all([
+    fetchServices(),
     isAdmin
       ? supabase.from("finance_settings").select("setter_commission_pct").single<Pick<FinanceSettings, "setter_commission_pct">>()
       : null,
@@ -41,6 +42,8 @@ export default async function NewProjectPage({ searchParams }: PageProps<"/proie
       : null,
   ]);
 
+  if (!services) return <MigrationNeeded title="Proiect nou" file="20261014000006_services.sql" />;
+
   const prefill: ProjectPrefill = lead?.data
     ? {
         lead_id: lead.data.id,
@@ -61,7 +64,7 @@ export default async function NewProjectPage({ searchParams }: PageProps<"/proie
       </Link>
       <PageHeader title="Proiect nou" description={lead?.data ? `Precompletat din lead-ul ${lead.data.company_name}.` : undefined} />
       <ProjectForm
-        stages={stages}
+        services={services}
         isAdmin={isAdmin}
         today={todayISO()}
         defaultCommissionPct={financeSettings?.data?.setter_commission_pct ?? "15"}

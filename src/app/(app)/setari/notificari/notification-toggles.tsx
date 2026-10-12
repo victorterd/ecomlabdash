@@ -21,7 +21,7 @@ const EVENTS: { key: BoolKey; label: string }[] = [
   { key: "notify_installments", label: "Tranșe de încasat scadente" },
   { key: "notify_payments", label: "Plăți planificate" },
   { key: "notify_shoots", label: "Filmări azi și mâine" },
-  { key: "notify_stage_deadlines", label: "Etape de proiect cu termen" },
+  { key: "notify_stage_deadlines", label: "Pași de proiect cu termen" },
 ];
 
 const DEFAULTS: Omit<NotificationPrefs, "user_id"> = {

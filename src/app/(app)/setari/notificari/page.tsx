@@ -24,7 +24,7 @@ export default async function NotificationSettingsPage() {
     <>
       <SettingsSection
         title="Email zilnic"
-        description="Rezumatul de dimineață: follow-up-uri, încasări scadente, plăți, filmări și etape cu termen."
+        description="Rezumatul de dimineață: follow-up-uri, încasări scadente, plăți, filmări și pași de proiect cu termen."
       >
         <SettingsForm
           action={saveAppSettings}

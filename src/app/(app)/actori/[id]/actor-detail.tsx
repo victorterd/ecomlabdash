@@ -6,12 +6,10 @@ import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, AtSignIcon, MailIcon, PencilIcon, PhoneIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { ActorDialog, RatingStars } from "@/components/actor-dialog";
-import { ColorBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatRON, formatTime } from "@/lib/format";
 import { formatPhone } from "@/lib/leads/normalize";
 import { RATE_UNIT_LABEL, type Actor, type Shoot } from "@/lib/projects/types";
-import type { ProjectStage } from "@/lib/types";
 import { deleteActor } from "../actions";
 
 export type ActorProject = {
@@ -24,7 +22,7 @@ export type ActorProject = {
     description: string | null;
     start_date: string | null;
     deadline: string | null;
-    current_stage_id: string | null;
+    delivered_at: string | null;
     archived: boolean;
   };
 };
@@ -33,19 +31,16 @@ export function ActorDetail({
   actor,
   projects,
   shoots,
-  stages,
   today,
 }: {
   actor: Actor;
   projects: ActorProject[];
   shoots: Shoot[];
-  stages: ProjectStage[];
   today: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const stageById = new Map(stages.map((s) => [s.id, s]));
   const projectName = new Map(projects.map((p) => [p.project.id, p.project.client_name]));
   const upcoming = shoots.filter((s) => s.shoot_date >= today);
   const past = shoots.filter((s) => s.shoot_date < today).reverse();
@@ -128,14 +123,13 @@ export function ActorDetail({
                   <tr className="[&>th]:h-9 [&>th]:px-3 [&>th]:text-left [&>th]:font-medium">
                     <th>Proiect</th>
                     <th>Rol</th>
-                    <th>Stadiu</th>
+                    <th>Stare</th>
                     <th>Perioadă</th>
                     <th className="text-right!">Onorariu</th>
                   </tr>
                 </thead>
                 <tbody>
                   {projects.map((p) => {
-                    const stage = p.project.current_stage_id ? stageById.get(p.project.current_stage_id) : undefined;
                     return (
                       <tr key={p.id} className="border-t [&>td]:px-3 [&>td]:py-2">
                         <td>
@@ -145,7 +139,15 @@ export function ActorDetail({
                           {p.project.description ? <div className="text-xs text-muted-foreground">{p.project.description}</div> : null}
                         </td>
                         <td className="text-muted-foreground">{p.role_notes}</td>
-                        <td>{stage ? <ColorBadge color={stage.color}>{stage.name}</ColorBadge> : null}</td>
+                        <td className="whitespace-nowrap text-xs">
+                          {p.project.archived ? (
+                            <span className="text-muted-foreground">Arhivat</span>
+                          ) : p.project.delivered_at ? (
+                            <span className="text-success">Livrat</span>
+                          ) : (
+                            <span>În lucru</span>
+                          )}
+                        </td>
                         <td className="whitespace-nowrap text-muted-foreground tabular-nums">
                           {formatDate(p.project.start_date)}
                           {p.project.deadline ? ` – ${formatDate(p.project.deadline)}` : ""}

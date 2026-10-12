@@ -3,10 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangleIcon, ArchiveIcon, ArrowLeftIcon, CalendarClockIcon, EllipsisIcon, PhoneCallIcon, Trash2Icon } from "lucide-react";
+import { AlertTriangleIcon, ArchiveIcon, ArrowLeftIcon, CalendarClockIcon, CheckCircle2Icon, EllipsisIcon, PhoneCallIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { StageMenu } from "@/components/stage-menu";
-import { Badge } from "@/components/ui/badge";
+import { Badge, ColorBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,48 +16,47 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/format";
-import { projectHealth } from "@/lib/projects/health";
+import { projectHealth, sortTasks } from "@/lib/projects/health";
 import { projectMoney } from "@/lib/projects/money";
 import type { ProjectDetailData } from "@/lib/projects/queries";
 import {
   PROJECT_TYPE_LABEL,
   type Project,
   type ProjectFinance,
+  type Service,
   type Shoot,
-  type StageDeadline,
   type Transaction,
 } from "@/lib/projects/types";
-import type { ProjectStage } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { deleteProject, moveProject, updateProject } from "../actions";
+import { deleteProject, type TasksState, updateProject } from "../actions";
 import { ActorsTab } from "./actors-tab";
 import { CostsTab, InstallmentsTab } from "./money-tabs";
 import { OverviewTab } from "./overview-tab";
 import { ShootsTab } from "./shoots-tab";
-import { StagesTab } from "./stages-tab";
+import { TasksTab } from "./tasks-tab";
 import type { ProjectOption } from "@/components/shoot-dialog";
 
 export type DetailState = {
   project: Project;
   finance: ProjectFinance | null;
-  deadlines: StageDeadline[];
+  tasks: TasksState;
   transactions: Transaction[];
   shoots: Shoot[];
 };
 
-const TABS = ["prezentare", "etape", "incasari", "costuri", "actori", "filmari"] as const;
+const TABS = ["pasi", "prezentare", "incasari", "costuri", "actori", "filmari"] as const;
 type Tab = (typeof TABS)[number];
 
 export function ProjectDetail({
   data,
-  stages,
+  services,
   today,
   warningDays,
   isAdmin,
   projectOptions,
 }: {
   data: ProjectDetailData;
-  stages: ProjectStage[];
+  services: Service[];
   today: string;
   warningDays: number;
   isAdmin: boolean;
@@ -69,7 +67,7 @@ export function ProjectDetail({
   const [state, setState] = useState<DetailState>({
     project: data.project,
     finance: data.finance,
-    deadlines: data.deadlines,
+    tasks: { tasks: data.tasks, serviceIds: data.serviceIds, deliveredAt: data.project.delivered_at },
     transactions: data.transactions,
     shoots: data.shoots,
   });
@@ -80,26 +78,31 @@ export function ProjectDetail({
     setState({
       project: data.project,
       finance: data.finance,
-      deadlines: data.deadlines,
+      tasks: { tasks: data.tasks, serviceIds: data.serviceIds, deliveredAt: data.project.delivered_at },
       transactions: data.transactions,
       shoots: data.shoots,
     });
   }
   const initialTab = searchParams.get("tab") as Tab | null;
   const [tab, setTabState] = useState<Tab>(
-    initialTab && TABS.includes(initialTab) && (isAdmin || !["incasari", "costuri"].includes(initialTab)) ? initialTab : "prezentare",
+    initialTab && TABS.includes(initialTab) && (isAdmin || !["incasari", "costuri"].includes(initialTab)) ? initialTab : "pasi",
   );
   const [, startTransition] = useTransition();
 
   const { project } = state;
-  const stageById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
-  const health = projectHealth(project, state.deadlines, stageById, today, warningDays);
+  const serviceById = useMemo(() => new Map(services.map((s) => [s.id, s])), [services]);
+  const health = projectHealth(
+    { ...project, delivered_at: state.tasks.deliveredAt },
+    sortTasks(state.tasks.tasks, services),
+    today,
+    warningDays,
+  );
   const money = isAdmin ? projectMoney(state.finance?.contract_value, state.transactions) : null;
 
   function setTab(next: string) {
     setTabState(next as Tab);
     const url = new URL(window.location.href);
-    if (next === "prezentare") url.searchParams.delete("tab");
+    if (next === "pasi") url.searchParams.delete("tab");
     else url.searchParams.set("tab", next);
     window.history.replaceState(null, "", url);
   }
@@ -114,24 +117,9 @@ export function ProjectDetail({
         setState((s) => ({ ...s, project: before }));
       } else {
         setState((s) => ({ ...s, project: result.data }));
-        // Data de start schimbă comisionul; termenul etapelor rămâne cum l-ai setat.
+        // Data de start schimbă comisionul; termenele pașilor rămân cum le-ai setat.
         if ("start_date" in patch) router.refresh();
       }
-    });
-  }
-
-  function changeStage(stageId: string) {
-    const before = state.project;
-    setState((s) => ({ ...s, project: { ...s.project, current_stage_id: stageId } }));
-    startTransition(async () => {
-      const result = await moveProject(project.id, stageId, project.board_position);
-      if (!result.ok) {
-        toast.error(result.error);
-        setState((s) => ({ ...s, project: before }));
-        return;
-      }
-      setState((s) => ({ ...s, deadlines: result.data }));
-      toast.success(`Stadiu: ${stageById.get(stageId)?.name}`);
     });
   }
 
@@ -149,7 +137,30 @@ export function ProjectDetail({
           <div className="grid gap-2">
             <h1 className="text-2xl font-semibold">{project.client_name}</h1>
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <StageMenu stages={stages} value={project.current_stage_id} onChange={changeStage} />
+              {state.tasks.serviceIds.map((id) => {
+                const service = serviceById.get(id);
+                return service ? (
+                  <ColorBadge key={id} color={service.color}>
+                    {service.name}
+                  </ColorBadge>
+                ) : null;
+              })}
+              {health.delivered && !project.archived ? (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
+                  <CheckCircle2Icon className="size-3.5" /> Livrat {formatDate(state.tasks.deliveredAt)}
+                </span>
+              ) : health.next ? (
+                <button
+                  type="button"
+                  onClick={() => setTab("pasi")}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <span className="tabular-nums">
+                    {health.done}/{health.total}
+                  </span>
+                  · Acum: <b className="font-medium text-foreground">{health.next.title}</b>
+                </button>
+              ) : null}
               <Badge variant="secondary">{PROJECT_TYPE_LABEL[project.type]}</Badge>
               {project.archived ? <Badge variant="outline">Arhivat</Badge> : null}
               {project.deadline ? (
@@ -166,14 +177,14 @@ export function ProjectDetail({
                   <CalendarClockIcon className="size-3.5" /> Deadline {formatDate(project.deadline)}
                 </span>
               ) : null}
-              {health.overdueStages.length ? (
+              {health.overdueTasks.length ? (
                 <button
                   type="button"
-                  onClick={() => setTab("etape")}
+                  onClick={() => setTab("pasi")}
                   className="inline-flex items-center gap-1 rounded-md bg-danger-soft px-1.5 py-0.5 text-xs text-destructive"
                 >
                   <AlertTriangleIcon className="size-3.5" />
-                  {health.overdueStages.length === 1 ? "1 etapă întârziată" : `${health.overdueStages.length} etape întârziate`}
+                  {health.overdueTasks.length === 1 ? "1 pas întârziat" : `${health.overdueTasks.length} pași întârziați`}
                 </button>
               ) : null}
               {project.lead_id ? (
@@ -224,10 +235,11 @@ export function ProjectDetail({
       <Tabs value={tab} onValueChange={setTab} className="min-w-0">
         <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
           <TabsList>
-            <TabsTrigger value="prezentare">Prezentare</TabsTrigger>
-            <TabsTrigger value="etape">
-              Etape {health.overdueStages.length ? <span className="size-1.5 rounded-full bg-destructive" /> : null}
+            <TabsTrigger value="pasi">
+              Pași {health.total ? <span className="text-[11px] text-muted-foreground tabular-nums">{health.done}/{health.total}</span> : null}
+              {health.overdueTasks.length ? <span className="size-1.5 rounded-full bg-destructive" /> : null}
             </TabsTrigger>
+            <TabsTrigger value="prezentare">Prezentare</TabsTrigger>
             {isAdmin ? (
               <>
                 <TabsTrigger value="incasari">Încasări {tabCount(installments.length)}</TabsTrigger>
@@ -242,14 +254,13 @@ export function ProjectDetail({
         <TabsContent value="prezentare" className="mt-4 min-w-0">
           <OverviewTab state={state} setState={setState} money={money} isAdmin={isAdmin} onPatch={patchProject} />
         </TabsContent>
-        <TabsContent value="etape" className="mt-4 min-w-0">
-          <StagesTab
+        <TabsContent value="pasi" className="mt-4 min-w-0">
+          <TasksTab
             projectId={project.id}
-            stages={stages}
-            currentStageId={project.current_stage_id}
-            deadlines={state.deadlines}
+            services={services}
+            state={state.tasks}
             today={today}
-            onChange={(d) => setState((s) => ({ ...s, deadlines: [...s.deadlines.filter((x) => x.stage_id !== d.stage_id), d] }))}
+            onState={(tasks) => setState((s) => ({ ...s, tasks }))}
           />
         </TabsContent>
         {isAdmin && money ? (

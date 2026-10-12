@@ -4,7 +4,7 @@ import { MigrationNeeded } from "@/components/layout/migration-needed";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireProfile } from "@/lib/auth";
 import { todayISO } from "@/lib/format";
-import { fetchActors, fetchProjectOptions, fetchShoots, fetchStages } from "@/lib/projects/queries";
+import { fetchActors, fetchProjectOptions, fetchServices, fetchShoots } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarView, type CalendarEvent } from "./calendar-view";
 
@@ -37,19 +37,20 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     return <MigrationNeeded title="Calendar" file="20261011000003_projects.sql" />;
   }
 
-  const [shoots, stages, actors, projectOptions, stageDeadlines, followUps, projectActors] = await Promise.all([
+  const [shoots, services, actors, projectOptions, tasks, followUps, projectActors] = await Promise.all([
     fetchShoots(range),
-    fetchStages(),
+    fetchServices(),
     fetchActors(),
     fetchProjectOptions(),
-    // Doar etapa la care se lucrează (prima nefinalizată) a fiecărui proiect activ.
+    // Pașii nebifați cu termen în intervalul afișat, pe proiectele active.
     supabase
-      .from("project_stage_deadlines")
-      .select("id, planned_date, stage_id, project:projects!inner(id, client_name, archived)")
-      .is("completed_date", null)
-      .not("planned_date", "is", null)
+      .from("project_tasks")
+      .select("id, title, due_date, service_id, project:projects!inner(id, client_name, archived)")
+      .is("done_at", null)
+      .gte("due_date", range.from)
+      .lte("due_date", range.to)
       .eq("project.archived", false)
-      .returns<{ id: string; planned_date: string; stage_id: string; project: { id: string; client_name: string } }[]>(),
+      .returns<{ id: string; title: string; due_date: string; service_id: string | null; project: { id: string; client_name: string } }[]>(),
     profile.role === "productie"
       ? Promise.resolve({ data: [] })
       : supabase
@@ -63,7 +64,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   ]);
 
   const projectName = new Map(projectOptions.map((p) => [p.id, p.client_name]));
-  const stageById = new Map(stages.map((s) => [s.id, s]));
+  const serviceById = new Map((services ?? []).map((s) => [s.id, s]));
   const actorName = new Map(actors.map((a) => [a.id, a.name]));
 
   const events: CalendarEvent[] = [
@@ -92,17 +93,17 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       detail: "Deadline livrare",
       href: `/proiecte/${p.id}`,
     })),
-    ...nextStagePerProject(stageDeadlines.data ?? [], stages)
-      .filter((d) => d.planned_date >= range.from && d.planned_date <= range.to)
-      .map((d): CalendarEvent => ({
-        id: `stage-${d.id}`,
+    ...(tasks.data ?? []).map(
+      (t): CalendarEvent => ({
+        id: `stage-${t.id}`,
         kind: "stage",
-        date: d.planned_date,
-        title: d.project.client_name,
-        detail: stageById.get(d.stage_id)?.name ?? "Etapă",
-        color: stageById.get(d.stage_id)?.color,
-        href: `/proiecte/${d.project.id}?tab=etape`,
-      })),
+        date: t.due_date,
+        title: t.project.client_name,
+        detail: t.title,
+        color: t.service_id ? serviceById.get(t.service_id)?.color : undefined,
+        href: `/proiecte/${t.project.id}`,
+      }),
+    ),
     ...(followUps.data ?? []).map((l): CalendarEvent => ({
       id: `lead-${l.id}`,
       kind: "followup",
@@ -141,17 +142,4 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       />
     </>
   );
-}
-
-function nextStagePerProject<T extends { stage_id: string; project: { id: string } }>(
-  deadlines: T[],
-  stages: { id: string; sort_order: number; is_final: boolean }[],
-): T[] {
-  const order = new Map(stages.map((s) => [s.id, s.sort_order]));
-  const best = new Map<string, T>();
-  for (const d of deadlines) {
-    const current = best.get(d.project.id);
-    if (!current || (order.get(d.stage_id) ?? 0) < (order.get(current.stage_id) ?? 0)) best.set(d.project.id, d);
-  }
-  return [...best.values()];
 }

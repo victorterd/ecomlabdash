@@ -23,7 +23,7 @@ function Badge({ className, variant, ...props }: React.ComponentProps<"span"> & 
   return <span data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
-/** Badge colorat după o culoare hex din setări (status lead, stadiu proiect). */
+/** Badge colorat după o culoare hex din setări (status lead, serviciu proiect). */
 function ColorBadge({ color, children, className }: { color: string; children: React.ReactNode; className?: string }) {
   return (
     <span

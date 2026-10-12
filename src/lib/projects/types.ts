@@ -12,8 +12,9 @@ export type Project = {
   type: ProjectType;
   start_date: string | null;
   deadline: string | null;
-  current_stage_id: string | null;
   board_position: number;
+  /** Setat automat când toți pașii sunt bifați. */
+  delivered_at: string | null;
   notes: string | null;
   archived: boolean;
   is_seed: boolean;
@@ -22,7 +23,7 @@ export type Project = {
 };
 
 export const PROJECT_COLUMNS =
-  "id, lead_id, client_name, contact_name, contact_email, contact_phone, website, description, type, start_date, deadline, current_stage_id, board_position, notes, archived, is_seed, created_at, updated_at";
+  "id, lead_id, client_name, contact_name, contact_email, contact_phone, website, description, type, start_date, deadline, board_position, delivered_at, notes, archived, is_seed, created_at, updated_at";
 
 export type ProjectFinance = {
   project_id: string;
@@ -35,13 +36,36 @@ export type ProjectFinance = {
   retainer_end_month: string | null;
 };
 
-export type StageDeadline = {
+export type Service = {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  active: boolean;
+};
+
+export type ServiceStep = {
+  id: string;
+  service_id: string;
+  name: string;
+  sort_order: number;
+  default_offset_days: number | null;
+};
+
+export type ServiceWithSteps = Service & { steps: ServiceStep[] };
+
+/** Un pas din checklist-ul proiectului. */
+export type ProjectTask = {
   id: string;
   project_id: string;
-  stage_id: string;
-  planned_date: string | null;
-  completed_date: string | null;
+  service_id: string | null;
+  title: string;
+  sort_order: number;
+  due_date: string | null;
+  done_at: string | null;
 };
+
+export const TASK_COLUMNS = "id, project_id, service_id, title, sort_order, due_date, done_at";
 
 export type TxType = "income" | "expense";
 export type TxStatus = "planned" | "realized";

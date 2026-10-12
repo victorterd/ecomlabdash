@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Autentificare" };
 
 const FEATURES = [
   { icon: PhoneCallIcon, text: "Lead-uri și follow-up-uri care nu se mai pierd" },
-  { icon: ClapperboardIcon, text: "Proiecte, etape și filmări sub control" },
+  { icon: ClapperboardIcon, text: "Proiecte, pași și filmări sub control" },
   { icon: WalletIcon, text: "Cashflow, profit și taxe calculate pe lună" },
   { icon: CalendarCheck2Icon, text: "Remindere pe email și pe telefon" },
 ];

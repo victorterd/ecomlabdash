@@ -72,6 +72,10 @@ export async function deleteListItem(table: string, id: string): Promise<ActionR
     const { count } = await supabase.from("lead_statuses").select("id", { count: "exact", head: true });
     if ((count ?? 0) <= 1) return { ok: false, error: "Trebuie să existe cel puțin un status." };
   }
+  if (table === "services") {
+    const { count } = await supabase.from("project_services").select("project_id", { count: "exact", head: true }).eq("service_id", id);
+    if (count) return { ok: false, error: `Serviciul e folosit pe ${count} ${count === 1 ? "proiect" : "proiecte"}. Debifează „Activ” ca să nu mai apară.` };
+  }
   if (table === "cost_types") {
     const { data } = await supabase.from("cost_types").select("is_commission").eq("id", id).single<{ is_commission: boolean }>();
     if (data?.is_commission) return { ok: false, error: "Tipul de cost pentru comision nu poate fi șters." };

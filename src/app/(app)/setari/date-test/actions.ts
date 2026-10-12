@@ -135,7 +135,8 @@ const ACTORS = [
 type SeedProject = {
   client: string;
   description: string;
-  stage: string;
+  /** Serviciile proiectului și pasul la care s-a ajuns (null = toți pașii bifați). */
+  services: { name: string; current: string | null }[];
   type?: "proiect" | "retainer";
   start: number;
   deadline: number;
@@ -150,7 +151,10 @@ const PROJECTS: SeedProject[] = [
   {
     client: "Atelier Lumina SRL",
     description: "20 clipuri video UGC + 5 statice",
-    stage: "Filmare",
+    services: [
+      { name: "Clipuri video", current: "Filmare" },
+      { name: "Statice", current: "Design" },
+    ],
     start: -14,
     deadline: 10,
     value: 12000,
@@ -172,7 +176,7 @@ const PROJECTS: SeedProject[] = [
   {
     client: "Pet Joy Store SRL",
     description: "10 clipuri TikTok cu produse pentru animale",
-    stage: "Scripturi",
+    services: [{ name: "Clipuri video", current: "Scripturi" }],
     start: -12,
     deadline: 4,
     value: 6500,
@@ -187,7 +191,7 @@ const PROJECTS: SeedProject[] = [
   {
     client: "Urban Sneakers SRL",
     description: "15 clipuri video + hook-uri A/B",
-    stage: "Editare",
+    services: [{ name: "Clipuri video", current: "Editare" }],
     start: -24,
     deadline: 6,
     value: 9800,
@@ -206,7 +210,7 @@ const PROJECTS: SeedProject[] = [
   {
     client: "Beauty Box RO SRL",
     description: "30 clipuri UGC pentru campania de iarnă",
-    stage: "Livrat",
+    services: [{ name: "Clipuri video", current: null }],
     start: -50,
     deadline: -12,
     value: 15000,
@@ -224,7 +228,7 @@ const PROJECTS: SeedProject[] = [
   {
     client: "Cafea de Specialitate SRL",
     description: "Retainer: 8 clipuri pe lună",
-    stage: "Semnat",
+    services: [{ name: "Clipuri video", current: "Semnat" }],
     type: "retainer",
     start: 0,
     deadline: 30,
@@ -244,12 +248,12 @@ async function seedProduction(today: Date): Promise<{ ok: true; projects: number
   const supabase = await createClient();
   const day = (offset: number) => format(addDays(today, offset), "yyyy-MM-dd");
 
-  const [{ data: stages, error: stagesError }, { data: costTypes }] = await Promise.all([
-    supabase.from("project_stages").select("id, name").order("sort_order"),
+  const [{ data: services, error: servicesError }, { data: steps }, { data: costTypes }] = await Promise.all([
+    supabase.from("services").select("id, name"),
+    supabase.from("service_steps").select("service_id, name, sort_order, default_offset_days").order("sort_order"),
     supabase.from("cost_types").select("id, name, default_category_id"),
   ]);
-  if (stagesError) return { ok: false, error: "rulează întâi migrația Etapei 3." };
-  const stageId = (name: string) => stages?.find((s) => s.name === name)?.id ?? stages?.[0]?.id ?? null;
+  if (servicesError) return { ok: false, error: "rulează întâi migrația 20261014000006_services.sql." };
   const costType = (name: string) => costTypes?.find((c) => c.name === name);
 
   const { data: actors, error: actorsError } = await supabase
@@ -267,7 +271,6 @@ async function seedProduction(today: Date): Promise<{ ok: true; projects: number
         type: p.type ?? "proiect",
         start_date: day(p.start),
         deadline: day(p.deadline),
-        current_stage_id: stages?.[0]?.id ?? null,
         board_position: (index + 1) * 1000,
         is_seed: true,
       })
@@ -275,12 +278,27 @@ async function seedProduction(today: Date): Promise<{ ok: true; projects: number
       .single<{ id: string }>();
     if (error || !project) return { ok: false, error: error?.message ?? "proiect" };
 
-    // Mutarea pe stadiu marchează etapele anterioare ca realizate.
-    if (p.stage !== stages?.[0]?.name)
-      await supabase
-        .from("projects")
-        .update({ current_stage_id: stageId(p.stage) })
-        .eq("id", project.id);
+    // Serviciile cu pașii lor: tot ce e înaintea pasului curent e bifat.
+    for (const ps of p.services) {
+      const service = services?.find((s) => s.name === ps.name);
+      if (!service) continue;
+      await supabase.from("project_services").insert({ project_id: project.id, service_id: service.id });
+      const serviceSteps = (steps ?? []).filter((st) => st.service_id === service.id);
+      const currentIndex = ps.current ? serviceSteps.findIndex((st) => st.name === ps.current) : serviceSteps.length;
+      await supabase.from("project_tasks").insert(
+        serviceSteps.map((st, i) => {
+          const due = st.default_offset_days === null ? null : p.start + st.default_offset_days;
+          return {
+            project_id: project.id,
+            service_id: service.id,
+            title: st.name,
+            sort_order: st.sort_order,
+            due_date: due === null ? null : day(due),
+            done_at: i < currentIndex ? day(Math.min(due ?? 0, 0)) : null,
+          };
+        }),
+      );
+    }
 
     await supabase.from("project_finance").insert({ project_id: project.id, contract_value: p.value, setter_name: "Setter" });
 

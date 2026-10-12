@@ -1,7 +1,7 @@
 import "server-only";
 import { isMissingRelation } from "@/lib/db-errors";
 import { createClient } from "@/lib/supabase/server";
-import type { AppSettings, CostType, ExpenseCategory, ProjectStage } from "@/lib/types";
+import type { AppSettings, CostType, ExpenseCategory } from "@/lib/types";
 import {
   ACTOR_COLUMNS,
   type Actor,
@@ -9,16 +9,32 @@ import {
   type Project,
   type ProjectActor,
   type ProjectFinance,
+  type ProjectTask,
+  type Service,
+  type ServiceStep,
+  type ServiceWithSteps,
   type Shoot,
-  type StageDeadline,
+  TASK_COLUMNS,
   TX_COLUMNS,
   type Transaction,
 } from "./types";
 
-export async function fetchStages(): Promise<ProjectStage[]> {
+/** Serviciile (Clipuri video, Website…) cu pașii lor, în ordine. `null` dacă migrația serviciilor nu e rulată. */
+export async function fetchServices(): Promise<ServiceWithSteps[] | null> {
   const supabase = await createClient();
-  const { data } = await supabase.from("project_stages").select("*").order("sort_order").returns<ProjectStage[]>();
-  return data ?? [];
+  const [{ data: services, error }, { data: steps }] = await Promise.all([
+    supabase.from("services").select("id, name, color, sort_order, active").order("sort_order").order("name").returns<Service[]>(),
+    supabase
+      .from("service_steps")
+      .select("id, service_id, name, sort_order, default_offset_days")
+      .order("sort_order")
+      .returns<ServiceStep[]>(),
+  ]);
+  if (error) {
+    if (isMissingRelation(error)) return null;
+    throw new Error(error.message);
+  }
+  return (services ?? []).map((s) => ({ ...s, steps: (steps ?? []).filter((st) => st.service_id === s.id) }));
 }
 
 export async function fetchAppSettings(): Promise<AppSettings> {
@@ -35,9 +51,32 @@ export async function fetchAppSettings(): Promise<AppSettings> {
   );
 }
 
+const PAGE = 1000; // limita de rânduri per request în Supabase
+
+/** Toți pașii tuturor proiectelor (paginat). Gol dacă migrația serviciilor nu e rulată. */
+export async function fetchAllTasks(): Promise<ProjectTask[]> {
+  const supabase = await createClient();
+  const all: ProjectTask[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("project_tasks")
+      .select(TASK_COLUMNS)
+      .order("project_id")
+      .order("sort_order")
+      .order("id")
+      .range(from, from + PAGE - 1)
+      .returns<ProjectTask[]>();
+    if (error || !data) return all;
+    all.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return all;
+}
+
 export type ProjectListData = {
   projects: Project[];
-  deadlines: StageDeadline[];
+  tasks: ProjectTask[];
+  projectServices: { project_id: string; service_id: string }[];
   finance: ProjectFinance[];
   transactions: Transaction[];
   actorCounts: Record<string, number>;
@@ -57,8 +96,9 @@ export async function fetchProjectList(isAdmin: boolean): Promise<ProjectListDat
     throw new Error(error.message);
   }
 
-  const [{ data: deadlines }, { data: projectActors }, finance, transactions] = await Promise.all([
-    supabase.from("project_stage_deadlines").select("*").returns<StageDeadline[]>(),
+  const [tasks, { data: projectServices }, { data: projectActors }, finance, transactions] = await Promise.all([
+    fetchAllTasks(),
+    supabase.from("project_services").select("project_id, service_id").returns<{ project_id: string; service_id: string }[]>(),
     supabase.from("project_actors").select("project_id").returns<{ project_id: string }[]>(),
     isAdmin ? supabase.from("project_finance").select("*").returns<ProjectFinance[]>() : Promise.resolve({ data: [] as ProjectFinance[] }),
     isAdmin
@@ -71,7 +111,8 @@ export async function fetchProjectList(isAdmin: boolean): Promise<ProjectListDat
 
   return {
     projects,
-    deadlines: deadlines ?? [],
+    tasks,
+    projectServices: projectServices ?? [],
     finance: finance.data ?? [],
     transactions: transactions.data ?? [],
     actorCounts,
@@ -81,7 +122,8 @@ export async function fetchProjectList(isAdmin: boolean): Promise<ProjectListDat
 export type ProjectDetailData = {
   project: Project;
   finance: ProjectFinance | null;
-  deadlines: StageDeadline[];
+  tasks: ProjectTask[];
+  serviceIds: string[];
   transactions: Transaction[];
   projectActors: ProjectActor[];
   actors: Actor[];
@@ -95,8 +137,9 @@ export async function fetchProjectDetail(id: string, isAdmin: boolean): Promise<
   const { data: project } = await supabase.from("projects").select(PROJECT_COLUMNS).eq("id", id).maybeSingle<Project>();
   if (!project) return null;
 
-  const [deadlines, projectActors, actors, shoots, finance, transactions, costTypes, categories] = await Promise.all([
-    supabase.from("project_stage_deadlines").select("*").eq("project_id", id).returns<StageDeadline[]>(),
+  const [tasks, projectServices, projectActors, actors, shoots, finance, transactions, costTypes, categories] = await Promise.all([
+    supabase.from("project_tasks").select(TASK_COLUMNS).eq("project_id", id).order("sort_order").returns<ProjectTask[]>(),
+    supabase.from("project_services").select("service_id").eq("project_id", id).returns<{ service_id: string }[]>(),
     supabase.from("project_actors").select("*").eq("project_id", id).order("created_at").returns<ProjectActor[]>(),
     supabase.from("actors").select(ACTOR_COLUMNS).order("name").returns<Actor[]>(),
     fetchShoots({ projectId: id }),
@@ -117,7 +160,8 @@ export async function fetchProjectDetail(id: string, isAdmin: boolean): Promise<
   return {
     project,
     finance: finance.data,
-    deadlines: deadlines.data ?? [],
+    tasks: tasks.data ?? [],
+    serviceIds: (projectServices.data ?? []).map((ps) => ps.service_id),
     transactions: transactions.data ?? [],
     projectActors: projectActors.data ?? [],
     actors: actors.data ?? [],

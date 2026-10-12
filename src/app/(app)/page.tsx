@@ -20,8 +20,8 @@ import { requireProfile } from "@/lib/auth";
 import { balanceAt, lastDayOfMonth, monthKey } from "@/lib/finance/calc";
 import { fetchFinanceSettings, fetchTransactions } from "@/lib/finance/queries";
 import { formatDate, formatRON, todayISO, toDecimal } from "@/lib/format";
-import { projectHealth } from "@/lib/projects/health";
-import { fetchAppSettings, fetchProjectList, fetchStages } from "@/lib/projects/queries";
+import { projectHealth, sortTasks } from "@/lib/projects/health";
+import { fetchAppSettings, fetchProjectList, fetchServices } from "@/lib/projects/queries";
 import { getMyReminders } from "@/lib/reminders/server";
 import { cn } from "@/lib/utils";
 
@@ -152,19 +152,30 @@ export default async function DashboardPage() {
 
           {projectsBlock ? (
             <Panel title="Proiecte" subtitle={`${projectsBlock.active} active`} href="/proiecte">
-              <div className="grid gap-2">
-                {projectsBlock.byStage
-                  .filter((s) => s.count)
-                  .map((s) => (
-                    <Link key={s.id} href="/proiecte" className="group flex items-center gap-3 text-sm">
-                      <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-                      <span className="w-32 truncate text-muted-foreground group-hover:text-foreground">{s.name}</span>
-                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                        <span className="block h-full rounded-full" style={{ width: `${(s.count / projectsBlock.maxStage) * 100}%`, backgroundColor: s.color }} />
+              <div className="grid gap-3.5">
+                {projectsBlock.inProgress.map((p) => (
+                  <Link key={p.id} href={`/proiecte/${p.id}`} className="group grid gap-1 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate font-medium group-hover:underline">{p.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                        {p.done}/{p.total}
                       </span>
-                      <span className="w-5 text-right font-medium tabular-nums">{s.count}</span>
-                    </Link>
-                  ))}
+                    </div>
+                    <span className="h-1.5 overflow-hidden rounded-full bg-muted">
+                      <span className="block h-full rounded-full bg-brand" style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }} />
+                    </span>
+                    {p.next ? (
+                      <span className="truncate text-xs text-muted-foreground">
+                        Acum: <span className="text-foreground">{p.next}</span>
+                      </span>
+                    ) : null}
+                  </Link>
+                ))}
+                {projectsBlock.active > projectsBlock.inProgress.length ? (
+                  <Link href="/proiecte" className="text-xs text-muted-foreground hover:text-foreground">
+                    + încă {projectsBlock.active - projectsBlock.inProgress.length}
+                  </Link>
+                ) : null}
                 {projectsBlock.active === 0 ? <p className="text-sm text-muted-foreground">Niciun proiect activ.</p> : null}
               </div>
               {projectsBlock.late.length ? (
@@ -172,7 +183,7 @@ export default async function DashboardPage() {
                   {projectsBlock.late.slice(0, 4).map((p) => (
                     <Link
                       key={p.id}
-                      href={`/proiecte/${p.id}?tab=etape`}
+                      href={`/proiecte/${p.id}`}
                       className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-danger-soft px-3 py-2 text-sm"
                     >
                       <AlertTriangleIcon className="size-3.5 shrink-0 text-destructive" />
@@ -221,41 +232,47 @@ async function moneyThisMonth(today: string) {
 }
 
 async function projectsSummary(isAdmin: boolean, today: string) {
-  const [data, stages, settings] = await Promise.all([fetchProjectList(isAdmin), fetchStages(), fetchAppSettings()]);
-  if (!data) return null;
-  const stageById = new Map(stages.map((s) => [s.id, s]));
-  const active = data.projects.filter((p) => !p.archived);
-  const rows = active.map((p) => ({
-    project: p,
-    health: projectHealth(
-      p,
-      data.deadlines.filter((d) => d.project_id === p.id),
-      stageById,
-      today,
-      settings.deadline_warning_days,
-    ),
-  }));
-  const byStage = stages
-    .filter((s) => !s.is_final)
-    .map((s) => ({ id: s.id, name: s.name, color: s.color, count: active.filter((p) => p.current_stage_id === s.id).length }));
+  const [data, services, settings] = await Promise.all([fetchProjectList(isAdmin), fetchServices(), fetchAppSettings()]);
+  if (!data || !services) return null;
+  const rows = data.projects
+    .filter((p) => !p.archived)
+    .map((p) => ({
+      project: p,
+      health: projectHealth(
+        p,
+        sortTasks(
+          data.tasks.filter((t) => t.project_id === p.id),
+          services,
+        ),
+        today,
+        settings.deadline_warning_days,
+      ),
+    }));
+  const active = rows
+    .filter((r) => !r.health.delivered)
+    .sort((a, b) => (a.project.deadline ?? "9999").localeCompare(b.project.deadline ?? "9999"));
   return {
-    active: rows.filter((r) => !r.health.delivered).length,
-    byStage,
-    maxStage: Math.max(1, ...byStage.map((s) => s.count)),
-    late: rows
+    active: active.length,
+    inProgress: active.slice(0, 5).map((r) => ({
+      id: r.project.id,
+      name: r.project.client_name,
+      done: r.health.done,
+      total: r.health.total,
+      next: r.health.next?.title ?? null,
+    })),
+    late: active
       .filter((r) => r.health.level === "red")
       .map((r) => ({
         id: r.project.id,
         name: r.project.client_name,
         reason: r.health.deadlinePassed
           ? "deadline depășit"
-          : r.health.overdueStages.length === 1
-            ? `etapă întârziată`
-            : `${r.health.overdueStages.length} etape întârziate`,
+          : r.health.overdueTasks.length === 1
+            ? "1 pas întârziat"
+            : `${r.health.overdueTasks.length} pași întârziați`,
       })),
-    upcoming: rows
-      .filter((r) => !r.health.delivered && r.project.deadline && r.project.deadline >= today)
-      .sort((a, b) => a.project.deadline!.localeCompare(b.project.deadline!))
+    upcoming: active
+      .filter((r) => r.project.deadline && r.project.deadline >= today)
       .slice(0, 5)
       .map((r) => ({ id: r.project.id, name: r.project.client_name, deadline: r.project.deadline!, soon: r.health.deadlineSoon })),
   };

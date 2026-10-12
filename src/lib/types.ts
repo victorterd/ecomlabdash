@@ -56,15 +56,6 @@ export type LeadSource = {
   active: boolean;
 };
 
-export type ProjectStage = {
-  id: string;
-  name: string;
-  color: string;
-  sort_order: number;
-  is_final: boolean;
-  default_offset_days: number | null;
-};
-
 export type ExpenseCategory = {
   id: string;
   name: string;

@@ -33,6 +33,7 @@ export function ListEditor({
   fields = [],
   addPlaceholder = "Element nou",
   locked = {},
+  createValues = {},
 }: {
   table: ListTable;
   rows: ListRow[];
@@ -40,6 +41,8 @@ export function ListEditor({
   addPlaceholder?: string;
   /** Rânduri care nu pot fi șterse (ex. tipul de cost „comision”): id → motiv. */
   locked?: Record<string, string>;
+  /** Valori adăugate la fiecare element nou (ex. serviciul de care ține un pas). */
+  createValues?: Record<string, unknown>;
 }) {
   const [, startTransition] = useTransition();
   const [optimisticRows, applyOptimistic] = useOptimistic(
@@ -93,7 +96,7 @@ export function ListEditor({
   function add() {
     const name = newName.trim();
     if (!name) return;
-    const defaults: Record<string, unknown> = { name };
+    const defaults: Record<string, unknown> = { ...createValues, name };
     if (fields.some((f) => f.key === "color")) defaults.color = "#64748b";
     setNewName("");
     run(null, () => createListItem(table, defaults), "Adăugat");

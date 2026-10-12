@@ -16,11 +16,11 @@ export const LIST_SCHEMAS = {
     })
     .partial(),
   lead_sources: z.object({ name, active: z.boolean() }).partial(),
-  project_stages: z
+  services: z.object({ name, color, active: z.boolean() }).partial(),
+  service_steps: z
     .object({
       name,
-      color,
-      is_final: z.boolean(),
+      service_id: z.uuid(),
       default_offset_days: z.number().int().min(0).max(365).nullable(),
     })
     .partial(),

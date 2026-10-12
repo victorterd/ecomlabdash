@@ -28,7 +28,7 @@ export type CalendarEvent = {
 
 type Kind = CalendarEvent["kind"];
 
-const KIND_LABEL: Record<Kind, string> = { shoot: "Filmări", deadline: "Deadline-uri", stage: "Termene etape", followup: "Follow-up-uri" };
+const KIND_LABEL: Record<Kind, string> = { shoot: "Filmări", deadline: "Deadline-uri", stage: "Pași proiect", followup: "Follow-up-uri" };
 const KIND_STYLE: Record<Kind, string> = {
   shoot: "bg-brand/15 text-foreground border-l-brand",
   deadline: "bg-danger-soft text-destructive border-l-destructive",

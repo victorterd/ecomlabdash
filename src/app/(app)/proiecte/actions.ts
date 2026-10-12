@@ -5,8 +5,20 @@ import { z } from "zod";
 import { fail, invalid, ok, type Result } from "@/lib/action-result";
 import { requireAdmin, requireProfile } from "@/lib/auth";
 import { todayISO } from "@/lib/format";
-import { PROJECT_COLUMNS, type Project, type ProjectFinance, type StageDeadline, TX_COLUMNS, type Transaction } from "@/lib/projects/types";
+import { suggestedDue } from "@/lib/projects/health";
+import {
+  PROJECT_COLUMNS,
+  type Project,
+  type ProjectFinance,
+  type ProjectTask,
+  type ServiceStep,
+  TASK_COLUMNS,
+  TX_COLUMNS,
+  type Transaction,
+} from "@/lib/projects/types";
 import { createClient } from "@/lib/supabase/server";
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
 import { moneyInput, percentInput } from "@/lib/validation";
 
 async function requireProduction() {
@@ -34,7 +46,6 @@ const projectSchema = z.object({
   type: z.enum(["proiect", "retainer"]),
   start_date: date,
   deadline: date,
-  current_stage_id: z.uuid().nullable(),
   notes: z
     .string()
     .max(50000)
@@ -68,17 +79,19 @@ function revalidateProjects(id?: string) {
 export async function createProject(
   values: Record<string, unknown>,
   financeValues: Record<string, unknown> | null,
+  serviceIds: string[] = [],
 ): Promise<Result<string>> {
   const profile = await requireProduction();
   const parsed = projectSchema.omit({ archived: true }).safeParse(values);
   if (!parsed.success) return invalid(parsed.error.issues);
+  const services = z.array(z.uuid()).safeParse(serviceIds);
+  if (!services.success) return invalid(services.error.issues);
 
   const isAdmin = profile.role === "admin";
   const finance = isAdmin && financeValues ? financeSchema.partial().safeParse(financeValues) : null;
   if (finance && !finance.success) return invalid(finance.error.issues);
 
   const supabase = await createClient();
-  // Proiectul nou intră la finalul coloanei stadiului ales.
   const { data: last } = await supabase
     .from("projects")
     .select("board_position")
@@ -98,6 +111,9 @@ export async function createProject(
     if (finError) return fail(finError);
   }
 
+  const servicesError = await addServices(supabase, data.id, services.data, parsed.data.start_date);
+  if (servicesError) return fail(servicesError);
+
   revalidateProjects(data.id);
   revalidatePath("/leaduri");
   return ok(data.id);
@@ -112,19 +128,6 @@ export async function updateProject(id: string, patch: Record<string, unknown>):
   if (error) return fail(error);
   revalidateProjects(id);
   return ok(data);
-}
-
-/** Mutare în Kanban: stadiu nou + poziție (între vecini). */
-export async function moveProject(id: string, stageId: string, position: number): Promise<Result<StageDeadline[]>> {
-  await requireProduction();
-  const parsed = z.object({ id: z.uuid(), stageId: z.uuid(), position: z.number().finite() }).safeParse({ id, stageId, position });
-  if (!parsed.success) return invalid(parsed.error.issues);
-  const supabase = await createClient();
-  const { error } = await supabase.from("projects").update({ current_stage_id: stageId, board_position: position }).eq("id", id);
-  if (error) return fail(error);
-  const { data } = await supabase.from("project_stage_deadlines").select("*").eq("project_id", id).returns<StageDeadline[]>();
-  revalidateProjects(id);
-  return ok(data ?? []);
 }
 
 export async function deleteProject(id: string): Promise<Result> {
@@ -166,26 +169,135 @@ export async function updateFinance(
 }
 
 // ---------------------------------------------------------------------
-// Termene pe etape
+// Servicii și pași (checklist)
 // ---------------------------------------------------------------------
 
-export async function updateStageDeadline(
-  projectId: string,
-  stageId: string,
-  patch: { planned_date?: string | null; completed_date?: string | null },
-): Promise<Result<StageDeadline>> {
+export type TasksState = { tasks: ProjectTask[]; serviceIds: string[]; deliveredAt: string | null };
+
+async function tasksState(supabase: Supabase, projectId: string): Promise<TasksState> {
+  const [{ data: tasks }, { data: services }, { data: project }] = await Promise.all([
+    supabase.from("project_tasks").select(TASK_COLUMNS).eq("project_id", projectId).order("sort_order").returns<ProjectTask[]>(),
+    supabase.from("project_services").select("service_id").eq("project_id", projectId).returns<{ service_id: string }[]>(),
+    supabase.from("projects").select("delivered_at").eq("id", projectId).maybeSingle<{ delivered_at: string | null }>(),
+  ]);
+  return { tasks: tasks ?? [], serviceIds: (services ?? []).map((s) => s.service_id), deliveredAt: project?.delivered_at ?? null };
+}
+
+/** Adaugă servicii pe proiect, cu pașii lor ca checklist (termen = start + zilele din Setări). */
+async function addServices(supabase: Supabase, projectId: string, serviceIds: string[], startDate: string | null) {
+  if (!serviceIds.length) return null;
+  const { error } = await supabase
+    .from("project_services")
+    .upsert(
+      serviceIds.map((service_id) => ({ project_id: projectId, service_id })),
+      { onConflict: "project_id,service_id", ignoreDuplicates: true },
+    );
+  if (error) return error;
+  const { data: steps } = await supabase
+    .from("service_steps")
+    .select("id, service_id, name, sort_order, default_offset_days")
+    .in("service_id", serviceIds)
+    .returns<ServiceStep[]>();
+  if (!steps?.length) return null;
+  const { error: tasksError } = await supabase.from("project_tasks").insert(
+    steps.map((step) => ({
+      project_id: projectId,
+      service_id: step.service_id,
+      title: step.name,
+      sort_order: step.sort_order,
+      due_date: suggestedDue(startDate, step.default_offset_days),
+    })),
+  );
+  return tasksError;
+}
+
+/** Serviciile proiectului: cele noi primesc pașii lor, cele scoase își pierd pașii. */
+export async function setProjectServices(projectId: string, serviceIds: string[]): Promise<Result<TasksState>> {
   await requireProduction();
-  const parsed = z.object({ planned_date: date.optional(), completed_date: date.optional() }).safeParse(patch);
+  const parsed = z.object({ projectId: z.uuid(), serviceIds: z.array(z.uuid()) }).safeParse({ projectId, serviceIds });
   if (!parsed.success) return invalid(parsed.error.issues);
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("project_stage_deadlines")
-    .upsert({ project_id: projectId, stage_id: stageId, ...parsed.data }, { onConflict: "project_id,stage_id" })
-    .select("*")
-    .single<StageDeadline>();
+  const current = await tasksState(supabase, projectId);
+  const added = serviceIds.filter((id) => !current.serviceIds.includes(id));
+  const removed = current.serviceIds.filter((id) => !serviceIds.includes(id));
+
+  if (removed.length) {
+    const { error } = await supabase.from("project_tasks").delete().eq("project_id", projectId).in("service_id", removed);
+    if (error) return fail(error);
+    const { error: psError } = await supabase.from("project_services").delete().eq("project_id", projectId).in("service_id", removed);
+    if (psError) return fail(psError);
+  }
+  if (added.length) {
+    const { data: project } = await supabase.from("projects").select("start_date").eq("id", projectId).single<{ start_date: string | null }>();
+    const error = await addServices(supabase, projectId, added, project?.start_date ?? null);
+    if (error) return fail(error);
+  }
+  revalidateProjects(projectId);
+  return ok(await tasksState(supabase, projectId));
+}
+
+const taskPatch = z
+  .object({
+    title: z.string().trim().min(1, "Scrie ce ai de făcut").max(300),
+    due_date: date,
+    done: z.boolean(),
+  })
+  .partial();
+
+/** Bifează / debifează un pas, îi schimbă numele sau termenul. */
+export async function updateTask(id: string, patch: z.input<typeof taskPatch>): Promise<Result<TasksState>> {
+  await requireProduction();
+  const parsed = taskPatch.safeParse(patch);
+  if (!parsed.success) return invalid(parsed.error.issues);
+  const { done, ...rest } = parsed.data;
+  const update = { ...rest, ...(done === undefined ? {} : { done_at: done ? todayISO() : null }) };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("project_tasks").update(update).eq("id", id).select("project_id").single<{ project_id: string }>();
+  if (error) return fail(error);
+  revalidateProjects(data.project_id);
+  return ok(await tasksState(supabase, data.project_id));
+}
+
+/** Pas nou, la finalul serviciului (sau la „Altele”, fără serviciu). */
+export async function addTask(projectId: string, serviceId: string | null, title: string): Promise<Result<TasksState>> {
+  await requireProduction();
+  const parsed = z
+    .object({ projectId: z.uuid(), serviceId: z.uuid().nullable(), title: z.string().trim().min(1, "Scrie ce ai de făcut").max(300) })
+    .safeParse({ projectId, serviceId, title });
+  if (!parsed.success) return invalid(parsed.error.issues);
+  const supabase = await createClient();
+  let last = supabase.from("project_tasks").select("sort_order").eq("project_id", projectId);
+  last = serviceId ? last.eq("service_id", serviceId) : last.is("service_id", null);
+  const { data: lastRow } = await last.order("sort_order", { ascending: false }).limit(1).maybeSingle<{ sort_order: number }>();
+  const { error } = await supabase
+    .from("project_tasks")
+    .insert({ project_id: projectId, service_id: serviceId, title: parsed.data.title, sort_order: (lastRow?.sort_order ?? 0) + 10 });
   if (error) return fail(error);
   revalidateProjects(projectId);
-  return ok(data);
+  return ok(await tasksState(supabase, projectId));
+}
+
+export async function deleteTask(id: string): Promise<Result<TasksState>> {
+  await requireProduction();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("project_tasks").delete().eq("id", id).select("project_id").single<{ project_id: string }>();
+  if (error) return fail(error);
+  revalidateProjects(data.project_id);
+  return ok(await tasksState(supabase, data.project_id));
+}
+
+/** Noua ordine a pașilor (id-urile în ordinea dorită). */
+export async function reorderTasks(projectId: string, ids: string[]): Promise<Result<TasksState>> {
+  await requireProduction();
+  const parsed = z.array(z.uuid()).max(500).safeParse(ids);
+  if (!parsed.success) return invalid(parsed.error.issues);
+  const supabase = await createClient();
+  for (const [index, id] of parsed.data.entries()) {
+    const { error } = await supabase.from("project_tasks").update({ sort_order: (index + 1) * 10 }).eq("id", id).eq("project_id", projectId);
+    if (error) return fail(error);
+  }
+  revalidateProjects(projectId);
+  return ok(await tasksState(supabase, projectId));
 }
 
 // ---------------------------------------------------------------------

@@ -6,6 +6,7 @@ import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { DateField } from "@/components/date-field";
 import { MoneyInput } from "@/components/money-input";
+import { ServicePicker } from "@/components/service-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -13,8 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatNumber, formatRON, toDecimal } from "@/lib/format";
-import type { ProjectType } from "@/lib/projects/types";
-import type { ProjectStage } from "@/lib/types";
+import type { ProjectType, Service } from "@/lib/projects/types";
 import { createProject } from "../actions";
 
 export type ProjectPrefill = Partial<{
@@ -29,13 +29,13 @@ export type ProjectPrefill = Partial<{
 }>;
 
 export function ProjectForm({
-  stages,
+  services,
   isAdmin,
   today,
   defaultCommissionPct,
   prefill,
 }: {
-  stages: ProjectStage[];
+  services: Service[];
   isAdmin: boolean;
   today: string;
   defaultCommissionPct: string;
@@ -44,7 +44,7 @@ export function ProjectForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [type, setType] = useState<ProjectType>("proiect");
-  const [stageId, setStageId] = useState(stages[0]?.id ?? "");
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string | null>(today);
   const [deadline, setDeadline] = useState<string | null>(null);
   const [contractValue, setContractValue] = useState<string | null>(null);
@@ -80,7 +80,6 @@ export function ProjectForm({
           type,
           start_date: startDate,
           deadline,
-          current_stage_id: stageId || null,
           notes: text("notes"),
         };
         const finance = isAdmin
@@ -96,7 +95,7 @@ export function ProjectForm({
           : null;
         setError(null);
         startTransition(async () => {
-          const result = await createProject(values, finance);
+          const result = await createProject(values, finance, serviceIds);
           if (result.ok) {
             toast.success("Proiect creat");
             router.push(`/proiecte/${result.data}`);
@@ -137,22 +136,18 @@ export function ProjectForm({
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Stadiu curent">
-          <Select value={stageId} onValueChange={setStageId}>
-            <SelectTrigger>
-              <SelectValue>{stages.find((s) => s.id === stageId)?.name}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {stages.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  <span className="size-2 rounded-full" style={{ backgroundColor: s.color }} />
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Dată început" hint="Termenele etapelor se calculează din ea (Setări → Proiecte).">
+        <div className="grid gap-2 sm:col-span-2">
+          <Label>Servicii</Label>
+          <ServicePicker
+            services={services}
+            value={serviceIds}
+            onToggle={(id, selected) => setServiceIds((current) => (selected ? [...current, id] : current.filter((x) => x !== id)))}
+          />
+          <p className="text-xs text-muted-foreground">
+            Fiecare serviciu vine cu pașii lui (Setări → Proiecte). Pe proiect îi bifezi pe măsură ce îi faci.
+          </p>
+        </div>
+        <Field label="Dată început" hint="Termenele pașilor se calculează din ea (Setări → Proiecte).">
           <DateField value={startDate} onChange={setStartDate} aria-label="Dată început" />
         </Field>
         <Field label="Deadline livrare">

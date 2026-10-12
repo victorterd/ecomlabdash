@@ -29,7 +29,7 @@ export const KIND_LABEL: Record<ReminderKind, string> = {
   installment: "Încasare",
   payment: "Plată",
   shoot: "Filmare",
-  stage: "Etapă proiect",
+  stage: "Pas proiect",
   deadline: "Deadline livrare",
 };
 
@@ -79,13 +79,15 @@ type ShootRow = {
   project: { id: string; client_name: string } | null;
   shoot_actors: { actor: { name: string } | null }[];
 };
-type StageRow = {
+type TaskRow = {
   id: string;
-  planned_date: string;
-  stage: { name: string; sort_order: number } | null;
-  project: { id: string; client_name: string; archived: boolean } | null;
+  title: string;
+  due_date: string;
+  sort_order: number;
+  service_id: string | null;
+  project: { id: string; client_name: string } | null;
 };
-type ProjectRow = { id: string; client_name: string; deadline: string; stage: { is_final: boolean } | null };
+type ProjectRow = { id: string; client_name: string; deadline: string };
 
 const TX_LABEL: Record<string, string> = {
   installment: "Tranșă",
@@ -107,7 +109,7 @@ export async function collectReminders(
   const want = new Set(kinds);
   const items: Reminder[] = [];
 
-  const [leads, txs, shoots, stages, projects] = await Promise.all([
+  const [leads, txs, shoots, tasks, projects] = await Promise.all([
     want.has("followup")
       ? supabase
           .from("leads")
@@ -140,18 +142,22 @@ export async function collectReminders(
       : null,
     want.has("stage")
       ? supabase
-          .from("project_stage_deadlines")
-          .select("id, planned_date, stage:project_stages(name, sort_order), project:projects!inner(id, client_name, archived)")
-          .is("completed_date", null)
-          .not("planned_date", "is", null)
+          .from("project_tasks")
+          .select("id, title, due_date, sort_order, service_id, project:projects!inner(id, client_name, archived, delivered_at)")
+          .is("done_at", null)
+          .lte("due_date", horizon)
           .eq("project.archived", false)
-          .returns<StageRow[]>()
+          .is("project.delivered_at", null)
+          .order("sort_order")
+          .limit(500)
+          .returns<TaskRow[]>()
       : null,
     want.has("deadline")
       ? supabase
           .from("projects")
-          .select("id, client_name, deadline, stage:project_stages(is_final)")
+          .select("id, client_name, deadline")
           .eq("archived", false)
+          .is("delivered_at", null)
           .lte("deadline", horizon)
           .returns<ProjectRow[]>()
       : null,
@@ -200,27 +206,25 @@ export async function collectReminders(
     });
   }
 
-  // Doar etapa la care se lucrează (prima nefinalizată) a fiecărui proiect.
-  const nextStage = new Map<string, StageRow>();
-  for (const d of stages?.data ?? []) {
-    if (!d.project || !d.stage) continue;
-    const current = nextStage.get(d.project.id);
-    if (!current || d.stage.sort_order < (current.stage?.sort_order ?? 0)) nextStage.set(d.project.id, d);
+  // Câte un pas pe fiecare serviciu al proiectului: primul nebifat cu termen (ca să nu se adune toată lista).
+  const nextTask = new Map<string, TaskRow>();
+  for (const t of tasks?.data ?? []) {
+    if (!t.project) continue;
+    const key = `${t.project.id}:${t.service_id ?? ""}`;
+    if (!nextTask.has(key)) nextTask.set(key, t);
   }
-  for (const d of nextStage.values()) {
-    if (d.planned_date > horizon) continue;
+  for (const t of nextTask.values()) {
     items.push({
-      id: `stage-${d.id}`,
+      id: `stage-${t.id}`,
       kind: "stage",
-      date: d.planned_date,
-      title: d.project!.client_name,
-      detail: d.stage!.name,
-      href: `/proiecte/${d.project!.id}?tab=etape`,
+      date: t.due_date,
+      title: t.project!.client_name,
+      detail: t.title,
+      href: `/proiecte/${t.project!.id}`,
     });
   }
 
   for (const p of projects?.data ?? []) {
-    if (p.stage?.is_final) continue;
     items.push({
       id: `deadline-${p.id}`,
       kind: "deadline",
