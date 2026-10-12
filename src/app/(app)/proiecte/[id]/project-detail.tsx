@@ -3,8 +3,18 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangleIcon, ArchiveIcon, ArrowLeftIcon, CalendarClockIcon, CheckCircle2Icon, EllipsisIcon, PhoneCallIcon, Trash2Icon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  ArchiveIcon,
+  ArrowLeftIcon,
+  CalendarClockIcon,
+  CheckCircle2Icon,
+  EllipsisIcon,
+  PhoneCallIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDeleteDialog } from "@/components/confirm-dialog";
 import { Badge, ColorBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,14 +29,7 @@ import { formatDate } from "@/lib/format";
 import { projectHealth, sortTasks } from "@/lib/projects/health";
 import { projectMoney } from "@/lib/projects/money";
 import type { ProjectDetailData } from "@/lib/projects/queries";
-import {
-  PROJECT_TYPE_LABEL,
-  type Project,
-  type ProjectFinance,
-  type Service,
-  type Shoot,
-  type Transaction,
-} from "@/lib/projects/types";
+import { PROJECT_TYPE_LABEL, type Project, type ProjectFinance, type Service, type Shoot, type Transaction } from "@/lib/projects/types";
 import { cn } from "@/lib/utils";
 import { deleteProject, type TasksState, updateProject } from "../actions";
 import { ActorsTab } from "./actors-tab";
@@ -87,7 +90,8 @@ export function ProjectDetail({
   const [tab, setTabState] = useState<Tab>(
     initialTab && TABS.includes(initialTab) && (isAdmin || !["incasari", "costuri"].includes(initialTab)) ? initialTab : "pasi",
   );
-  const [, startTransition] = useTransition();
+  const [deleting, startTransition] = useTransition();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { project } = state;
   const serviceById = useMemo(() => new Map(services.map((s) => [s.id, s])), [services]);
@@ -210,19 +214,7 @@ export function ProjectDetail({
               {isAdmin ? (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={() => {
-                      if (!confirm(`Ștergi proiectul „${project.client_name}”? Se șterg și tranșele, costurile și filmările lui.`)) return;
-                      startTransition(async () => {
-                        const result = await deleteProject(project.id);
-                        if (result.ok) {
-                          toast.success("Proiect șters");
-                          router.push("/proiecte");
-                        } else toast.error(result.error);
-                      });
-                    }}
-                  >
+                  <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
                     <Trash2Icon /> Șterge proiectul
                   </DropdownMenuItem>
                 </>
@@ -232,11 +224,45 @@ export function ProjectDetail({
         </div>
       </div>
 
+      <ConfirmDeleteDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Ștergi proiectul „${project.client_name}”?`}
+        description={
+          <span className="grid gap-2">
+            <span>Se șterg definitiv, inclusiv din cashflow:</span>
+            <span className="grid gap-0.5 pl-1">
+              <span>· {installments.length} încasări (tranșe), și cele deja încasate</span>
+              <span>· {costs.length} costuri, inclusiv comisionul</span>
+              <span>· {state.shoots.length} filmări și pașii proiectului</span>
+            </span>
+            <span>Dacă vrei doar să nu-l mai vezi, folosește „Arhivează”.</span>
+          </span>
+        }
+        confirmLabel="Șterge proiectul"
+        pending={deleting}
+        onConfirm={() =>
+          startTransition(async () => {
+            const result = await deleteProject(project.id);
+            if (result.ok) {
+              setConfirmDelete(false);
+              toast.success("Proiect șters");
+              router.push("/proiecte");
+            } else toast.error(result.error);
+          })
+        }
+      />
+
       <Tabs value={tab} onValueChange={setTab} className="min-w-0">
         <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
           <TabsList>
             <TabsTrigger value="pasi">
-              Pași {health.total ? <span className="text-[11px] text-muted-foreground tabular-nums">{health.done}/{health.total}</span> : null}
+              Pași{" "}
+              {health.total ? (
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {health.done}/{health.total}
+                </span>
+              ) : null}
               {health.overdueTasks.length ? <span className="size-1.5 rounded-full bg-destructive" /> : null}
             </TabsTrigger>
             <TabsTrigger value="prezentare">Prezentare</TabsTrigger>

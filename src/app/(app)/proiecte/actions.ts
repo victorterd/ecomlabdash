@@ -130,23 +130,16 @@ export async function updateProject(id: string, patch: Record<string, unknown>):
   return ok(data);
 }
 
+/** Șterge proiectul cu tot ce ține de el: tranșe, costuri, comision (și din cashflow), filmări, pași. */
 export async function deleteProject(id: string): Promise<Result> {
   await requireAdmin();
+  const parsed = z.uuid().safeParse(id);
+  if (!parsed.success) return invalid(parsed.error.issues);
   const supabase = await createClient();
-  const { count } = await supabase
-    .from("transactions")
-    .select("id", { count: "exact", head: true })
-    .eq("project_id", id)
-    .eq("status", "realized");
-  if (count) {
-    return {
-      ok: false,
-      error: "Proiectul are încasări sau plăți realizate. Arhivează-l în loc să-l ștergi, ca să nu pierzi istoricul din cashflow.",
-    };
-  }
   const { error } = await supabase.from("projects").delete().eq("id", id);
   if (error) return fail(error);
   revalidateProjects();
+  revalidatePath("/financiar", "layout");
   return ok(null);
 }
 
@@ -186,12 +179,10 @@ async function tasksState(supabase: Supabase, projectId: string): Promise<TasksS
 /** Adaugă servicii pe proiect, cu pașii lor ca checklist (termen = start + zilele din Setări). */
 async function addServices(supabase: Supabase, projectId: string, serviceIds: string[], startDate: string | null) {
   if (!serviceIds.length) return null;
-  const { error } = await supabase
-    .from("project_services")
-    .upsert(
-      serviceIds.map((service_id) => ({ project_id: projectId, service_id })),
-      { onConflict: "project_id,service_id", ignoreDuplicates: true },
-    );
+  const { error } = await supabase.from("project_services").upsert(
+    serviceIds.map((service_id) => ({ project_id: projectId, service_id })),
+    { onConflict: "project_id,service_id", ignoreDuplicates: true },
+  );
   if (error) return error;
   const { data: steps } = await supabase
     .from("service_steps")
@@ -228,7 +219,11 @@ export async function setProjectServices(projectId: string, serviceIds: string[]
     if (psError) return fail(psError);
   }
   if (added.length) {
-    const { data: project } = await supabase.from("projects").select("start_date").eq("id", projectId).single<{ start_date: string | null }>();
+    const { data: project } = await supabase
+      .from("projects")
+      .select("start_date")
+      .eq("id", projectId)
+      .single<{ start_date: string | null }>();
     const error = await addServices(supabase, projectId, added, project?.start_date ?? null);
     if (error) return fail(error);
   }
@@ -252,7 +247,12 @@ export async function updateTask(id: string, patch: z.input<typeof taskPatch>): 
   const { done, ...rest } = parsed.data;
   const update = { ...rest, ...(done === undefined ? {} : { done_at: done ? todayISO() : null }) };
   const supabase = await createClient();
-  const { data, error } = await supabase.from("project_tasks").update(update).eq("id", id).select("project_id").single<{ project_id: string }>();
+  const { data, error } = await supabase
+    .from("project_tasks")
+    .update(update)
+    .eq("id", id)
+    .select("project_id")
+    .single<{ project_id: string }>();
   if (error) return fail(error);
   revalidateProjects(data.project_id);
   return ok(await tasksState(supabase, data.project_id));
@@ -293,7 +293,11 @@ export async function reorderTasks(projectId: string, ids: string[]): Promise<Re
   if (!parsed.success) return invalid(parsed.error.issues);
   const supabase = await createClient();
   for (const [index, id] of parsed.data.entries()) {
-    const { error } = await supabase.from("project_tasks").update({ sort_order: (index + 1) * 10 }).eq("id", id).eq("project_id", projectId);
+    const { error } = await supabase
+      .from("project_tasks")
+      .update({ sort_order: (index + 1) * 10 })
+      .eq("id", id)
+      .eq("project_id", projectId);
     if (error) return fail(error);
   }
   revalidateProjects(projectId);
