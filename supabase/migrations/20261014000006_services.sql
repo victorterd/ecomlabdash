@@ -9,9 +9,10 @@
 -- Unde e proiectul = primul pas nebifat. Proiectul e livrat când toți pașii sunt bifați.
 -- Proiectele existente primesc serviciul „Clipuri video”, cu pașii din vechile stadii.
 -- Tabelele vechi (project_stages, project_stage_deadlines) rămân, dar nu mai sunt folosite.
+-- Scriptul se poate rula de mai multe ori: completează doar ce lipsește.
 -- =====================================================================
 
-create table public.services (
+create table if not exists public.services (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (length(trim(name)) > 0),
   color       text not null default '#64748b',
@@ -20,9 +21,9 @@ create table public.services (
   created_at  timestamptz not null default now()
 );
 
-create unique index services_name_key on public.services (lower(name));
+create unique index if not exists services_name_key on public.services (lower(name));
 
-create table public.service_steps (
+create table if not exists public.service_steps (
   id                   uuid primary key default gen_random_uuid(),
   service_id           uuid not null references public.services (id) on delete cascade,
   name                 text not null check (length(trim(name)) > 0),
@@ -31,16 +32,16 @@ create table public.service_steps (
   created_at           timestamptz not null default now()
 );
 
-create index service_steps_service_idx on public.service_steps (service_id, sort_order);
+create index if not exists service_steps_service_idx on public.service_steps (service_id, sort_order);
 
-create table public.project_services (
+create table if not exists public.project_services (
   project_id  uuid not null references public.projects (id) on delete cascade,
   service_id  uuid not null references public.services (id) on delete cascade,
   created_at  timestamptz not null default now(),
   primary key (project_id, service_id)
 );
 
-create table public.project_tasks (
+create table if not exists public.project_tasks (
   id          uuid primary key default gen_random_uuid(),
   project_id  uuid not null references public.projects (id) on delete cascade,
   service_id  uuid references public.services (id) on delete set null,
@@ -51,8 +52,8 @@ create table public.project_tasks (
   created_at  timestamptz not null default now()
 );
 
-create index project_tasks_project_idx on public.project_tasks (project_id, sort_order);
-create index project_tasks_due_idx on public.project_tasks (due_date) where done_at is null;
+create index if not exists project_tasks_project_idx on public.project_tasks (project_id, sort_order);
+create index if not exists project_tasks_due_idx on public.project_tasks (due_date) where done_at is null;
 
 -- Proiect livrat = are pași și toți sunt bifați (se ține la zi automat).
 alter table public.projects add column if not exists delivered_at date;
@@ -91,6 +92,7 @@ begin
 end;
 $$;
 
+drop trigger if exists project_tasks_delivered on public.project_tasks;
 create trigger project_tasks_delivered after insert or update or delete on public.project_tasks
   for each row execute function public.project_tasks_delivered();
 
@@ -109,14 +111,20 @@ alter table public.service_steps     enable row level security;
 alter table public.project_services  enable row level security;
 alter table public.project_tasks     enable row level security;
 
+drop policy if exists services_select on public.services;
 create policy services_select on public.services for select to authenticated using (true);
+drop policy if exists services_write on public.services;
 create policy services_write  on public.services for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
+drop policy if exists service_steps_select on public.service_steps;
 create policy service_steps_select on public.service_steps for select to authenticated using (true);
+drop policy if exists service_steps_write on public.service_steps;
 create policy service_steps_write  on public.service_steps for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
+drop policy if exists project_services_access on public.project_services;
 create policy project_services_access on public.project_services for all to authenticated
   using (public.can_access_production()) with check (public.can_access_production());
+drop policy if exists project_tasks_access on public.project_tasks;
 create policy project_tasks_access on public.project_tasks for all to authenticated
   using (public.can_access_production()) with check (public.can_access_production());
 
@@ -124,20 +132,26 @@ create policy project_tasks_access on public.project_tasks for all to authentica
 -- Servicii implicite
 -- ---------------------------------------------------------------------
 
-insert into public.services (name, color, sort_order) values
+insert into public.services (name, color, sort_order)
+select v.name, v.color, v.sort_order
+from (values
   ('Clipuri video', '#f97316', 10),
   ('Statice',       '#6366f1', 20),
-  ('Website',       '#06b6d4', 30);
+  ('Website',       '#06b6d4', 30)
+) as v (name, color, sort_order)
+where not exists (select 1 from public.services s where lower(s.name) = lower(v.name));
 
 -- Clipuri video: pașii vin din stadiile pe care le aveai deja.
 insert into public.service_steps (service_id, name, sort_order, default_offset_days)
 select v.id, s.name, s.sort_order, s.default_offset_days
 from public.project_stages s
-cross join (select id from public.services where name = 'Clipuri video') v;
+cross join (select id from public.services where name = 'Clipuri video') v
+where not exists (select 1 from public.service_steps x where x.service_id = v.id);
 
 insert into public.service_steps (service_id, name, sort_order, default_offset_days)
 select v.id, step.name, step.sort_order, step.days
-from (select id from public.services where name = 'Statice') v
+from (select id from public.services where name = 'Statice'
+      and not exists (select 1 from public.service_steps x where x.service_id = services.id)) v
 cross join (values
   ('Brief primit',   10, 0),
   ('Concepte',       20, 3),
@@ -148,7 +162,8 @@ cross join (values
 
 insert into public.service_steps (service_id, name, sort_order, default_offset_days)
 select v.id, step.name, step.sort_order, step.days
-from (select id from public.services where name = 'Website') v
+from (select id from public.services where name = 'Website'
+      and not exists (select 1 from public.service_steps x where x.service_id = services.id)) v
 cross join (values
   ('Brief și conținut primit', 10, 0),
   ('Structură / wireframe',    20, 5),
@@ -166,7 +181,8 @@ cross join (values
 insert into public.project_services (project_id, service_id)
 select p.id, v.id
 from public.projects p
-cross join (select id from public.services where name = 'Clipuri video') v;
+cross join (select id from public.services where name = 'Clipuri video') v
+where not exists (select 1 from public.project_services x where x.project_id = p.id);
 
 -- Un pas e bifat dacă etapa avea „realizat la” sau era înaintea stadiului curent.
 insert into public.project_tasks (project_id, service_id, title, sort_order, due_date, done_at)
@@ -180,4 +196,5 @@ from public.projects p
 cross join public.project_stages s
 cross join (select id from public.services where name = 'Clipuri video') v
 left join public.project_stage_deadlines d on d.project_id = p.id and d.stage_id = s.id
-left join public.project_stages cur on cur.id = p.current_stage_id;
+left join public.project_stages cur on cur.id = p.current_stage_id
+where not exists (select 1 from public.project_tasks x where x.project_id = p.id);
