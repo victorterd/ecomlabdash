@@ -110,7 +110,8 @@ export async function deleteTestData(): Promise<Result> {
   await supabase.from("transactions").delete().eq("is_seed", true);
   const actors = await supabase.from("actors").delete({ count: "exact" }).eq("is_seed", true);
   await supabase.from("recurring_expenses").delete().eq("is_seed", true);
-  await supabase.from("forecast_entries").delete().eq("is_seed", true);
+  await supabase.from("forecast_projects").delete().eq("is_seed", true);
+  await supabase.from("forecast_fixed_costs").delete().eq("is_seed", true);
   const { error, count } = await supabase.from("leads").delete({ count: "exact" }).eq("is_seed", true);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
@@ -390,13 +391,26 @@ async function seedFinance(today: Date) {
   });
   await supabase.rpc("generate_recurring_transactions", { p_months: 12 });
 
-  const forecast = Array.from({ length: 6 }, (_, i) => {
+  // Forecast P&L pe următoarele 6 luni: proiecte estimate + costuri fixe.
+  for (let i = 0; i < 6; i++) {
     const month = format(new Date(today.getFullYear(), today.getMonth() + i, 1), "yyyy-MM-dd");
-    return [
-      { month, type: "income", category_id: null, amount: 25000 + i * 2000, is_seed: true },
-      { month, type: "expense", category_id: ads, amount: 2000, is_seed: true },
-      { month, type: "expense", category_id: cat(/produc/i), amount: 8000 + i * 500, is_seed: true },
-    ];
-  }).flat();
-  await supabase.from("forecast_entries").upsert(forecast, { onConflict: "month,type,category_id", ignoreDuplicates: true });
+    await supabase.from("forecast_projects").insert([
+      { month, name: "Client mediu", revenue: 3200, actor: 400, cameraman: 300, editor: 600, sort_order: 10, is_seed: true },
+      { month, name: "Client mediu", revenue: 3200, actor: 400, cameraman: 300, editor: 600, sort_order: 20, is_seed: true },
+      ...Array.from({ length: 2 + (i % 3) }, (_, j) => ({
+        month,
+        name: "Client mic",
+        revenue: 1000,
+        actor: 150,
+        cameraman: 150,
+        editor: 200,
+        sort_order: 30 + j * 10,
+        is_seed: true,
+      })),
+    ]);
+    await supabase.from("forecast_fixed_costs").insert([
+      { month, name: "Contabilitate", amount: 400, sort_order: 10, is_seed: true },
+      { month, name: "Advertising (adurile agenției)", amount: 1500, sort_order: 20, is_seed: true },
+    ]);
+  }
 }

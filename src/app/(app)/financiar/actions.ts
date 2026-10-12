@@ -189,30 +189,139 @@ export async function deleteRecurring(id: string): Promise<Result> {
 // Forecast
 // ---------------------------------------------------------------------
 
-export async function saveForecast(
+// ---------------------------------------------------------------------
+// Forecast P&L: proiecte estimate și costuri fixe, pe lună
+// ---------------------------------------------------------------------
+
+export type ForecastRow = Record<string, string | number> & { id: string };
+
+const monthDate = z.string().regex(/^\d{4}-\d{2}-01$/, "Lună invalidă");
+const label = z.string().trim().max(200);
+const amount = moneyInput.nullable().transform((v) => v ?? "0");
+
+const forecastProjectSchema = z.object({ name: label, revenue: amount, actor: amount, cameraman: amount, editor: amount }).partial();
+const forecastFixedSchema = z.object({ name: label, amount }).partial();
+
+const FORECAST_TABLES = {
+  project: {
+    table: "forecast_projects",
+    schema: forecastProjectSchema,
+    columns: "id, month, name, revenue, actor, cameraman, editor, sort_order",
+  },
+  fixed: { table: "forecast_fixed_costs", schema: forecastFixedSchema, columns: "id, month, name, amount, sort_order" },
+} as const;
+
+export type ForecastKind = keyof typeof FORECAST_TABLES;
+
+function forecastDone<T>(data: T): Result<T> {
+  revalidatePath("/financiar/forecast");
+  return ok(data);
+}
+
+/** Rând nou (gol) la finalul lunii. */
+export async function addForecastRow(
+  kind: ForecastKind,
   month: string,
-  type: "income" | "expense",
-  categoryId: string | null,
-  amount: string | null,
-): Promise<Result> {
+  values: Record<string, unknown> = {},
+): Promise<Result<ForecastRow>> {
   await requireAdmin();
-  const parsed = z
-    .object({
-      month: z.string().regex(/^\d{4}-\d{2}-01$/),
-      type: z.enum(["income", "expense"]),
-      category_id: z.uuid().nullable(),
-      amount: moneyInput.nullable(),
-    })
-    .safeParse({ month, type, category_id: categoryId, amount });
+  const def = FORECAST_TABLES[kind];
+  const parsedMonth = monthDate.safeParse(month);
+  const parsed = def.schema.safeParse(values);
+  if (!parsedMonth.success) return invalid(parsedMonth.error.issues);
   if (!parsed.success) return invalid(parsed.error.issues);
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("forecast_entries")
-    .upsert(
-      { month: parsed.data.month, type: parsed.data.type, category_id: parsed.data.category_id, amount: parsed.data.amount ?? "0" },
-      { onConflict: "month,type,category_id" },
-    );
+  const { data: last } = await supabase
+    .from(def.table)
+    .select("sort_order")
+    .eq("month", month)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ sort_order: number }>();
+  const { data, error } = await supabase
+    .from(def.table)
+    .insert({ month, ...parsed.data, sort_order: (last?.sort_order ?? 0) + 10 })
+    .select(def.columns)
+    .single<ForecastRow>();
   if (error) return fail(error);
-  revalidatePath("/financiar/forecast");
-  return ok(null);
+  return forecastDone(data);
+}
+
+export async function updateForecastRow(kind: ForecastKind, id: string, values: Record<string, unknown>): Promise<Result<ForecastRow>> {
+  await requireAdmin();
+  const def = FORECAST_TABLES[kind];
+  const parsed = def.schema.safeParse(values);
+  if (!parsed.success) return invalid(parsed.error.issues);
+  const supabase = await createClient();
+  const { data, error } = await supabase.from(def.table).update(parsed.data).eq("id", id).select(def.columns).single<ForecastRow>();
+  if (error) return fail(error);
+  return forecastDone(data);
+}
+
+export async function deleteForecastRow(kind: ForecastKind, id: string): Promise<Result> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase.from(FORECAST_TABLES[kind].table).delete().eq("id", id);
+  if (error) return fail(error);
+  return forecastDone(null);
+}
+
+/** Copiază proiectele estimate și costurile fixe dintr-o lună în alta (care trebuie să fie goală). */
+export async function copyForecastMonth(from: string, to: string): Promise<Result> {
+  await requireAdmin();
+  const parsed = z.object({ from: monthDate, to: monthDate }).safeParse({ from, to });
+  if (!parsed.success) return invalid(parsed.error.issues);
+  const supabase = await createClient();
+  for (const def of Object.values(FORECAST_TABLES)) {
+    const { count } = await supabase.from(def.table).select("id", { count: "exact", head: true }).eq("month", to);
+    if (count) return { ok: false, error: "Luna are deja estimări. Șterge-le întâi dacă vrei să copiezi." };
+  }
+  for (const def of Object.values(FORECAST_TABLES)) {
+    const { data } = await supabase.from(def.table).select(def.columns).eq("month", from).returns<ForecastRow[]>();
+    if (!data?.length) continue;
+    const copies = data.map((row) => {
+      const copy: Record<string, unknown> = { ...row, month: to };
+      delete copy.id;
+      return copy;
+    });
+    const { error } = await supabase.from(def.table).insert(copies);
+    if (error) return fail(error);
+  }
+  return forecastDone(null);
+}
+
+const importSchema = z
+  .array(
+    z.object({
+      month: monthDate,
+      projects: z.array(z.object({ name: label, revenue: amount, actor: amount, cameraman: amount, editor: amount })).max(200),
+      fixedCosts: z.array(z.object({ name: label, amount })).max(200),
+    }),
+  )
+  .max(24);
+
+/** Import din Excel: lunile din fișier își înlocuiesc estimările; celelalte luni rămân neatinse. */
+export async function importForecast(
+  months: z.input<typeof importSchema>,
+): Promise<Result<{ months: number; projects: number; fixedCosts: number }>> {
+  await requireAdmin();
+  const parsed = importSchema.safeParse(months);
+  if (!parsed.success) return invalid(parsed.error.issues);
+  const supabase = await createClient();
+  const list = parsed.data.map((m) => m.month);
+  for (const def of Object.values(FORECAST_TABLES)) {
+    const { error } = await supabase.from(def.table).delete().in("month", list);
+    if (error) return fail(error);
+  }
+  const projects = parsed.data.flatMap((m) => m.projects.map((p, i) => ({ ...p, month: m.month, sort_order: (i + 1) * 10 })));
+  const fixedCosts = parsed.data.flatMap((m) => m.fixedCosts.map((c, i) => ({ ...c, month: m.month, sort_order: (i + 1) * 10 })));
+  if (projects.length) {
+    const { error } = await supabase.from("forecast_projects").insert(projects);
+    if (error) return fail(error);
+  }
+  if (fixedCosts.length) {
+    const { error } = await supabase.from("forecast_fixed_costs").insert(fixedCosts);
+    if (error) return fail(error);
+  }
+  return forecastDone({ months: list.length, projects: projects.length, fixedCosts: fixedCosts.length });
 }

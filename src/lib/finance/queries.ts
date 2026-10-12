@@ -17,7 +17,19 @@ export type RecurringExpense = {
   is_seed: boolean;
 };
 
-export type ForecastEntry = { id: string; month: string; type: "income" | "expense"; category_id: string | null; amount: string };
+/** Proiect estimat într-o lună de forecast (ca un rând din Excel-ul P&L). */
+export type ForecastProject = {
+  id: string;
+  month: string;
+  name: string;
+  revenue: string;
+  actor: string;
+  cameraman: string;
+  editor: string;
+  sort_order: number;
+};
+
+export type ForecastFixedCost = { id: string; month: string; name: string; amount: string; sort_order: number };
 
 export type TransactionRow = Transaction & {
   project: { id: string; client_name: string } | null;
@@ -88,15 +100,38 @@ export async function fetchRecurring(): Promise<RecurringExpense[]> {
   return data ?? [];
 }
 
-export async function fetchForecast(fromMonth: string, toMonth: string): Promise<ForecastEntry[]> {
+/** Forecast-ul unui an (proiecte estimate + costuri fixe). `null` dacă migrația nu e rulată. */
+export async function fetchForecastYear(
+  year: number,
+): Promise<{ projects: ForecastProject[]; fixedCosts: ForecastFixedCost[] } | null> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("forecast_entries")
-    .select("id, month, type, category_id, amount")
-    .gte("month", fromMonth)
-    .lte("month", toMonth)
-    .returns<ForecastEntry[]>();
-  return data ?? [];
+  const from = `${year}-01-01`;
+  const to = `${year}-12-01`;
+  const [projects, fixedCosts] = await Promise.all([
+    supabase
+      .from("forecast_projects")
+      .select("id, month, name, revenue, actor, cameraman, editor, sort_order")
+      .gte("month", from)
+      .lte("month", to)
+      .order("month")
+      .order("sort_order")
+      .order("created_at")
+      .returns<ForecastProject[]>(),
+    supabase
+      .from("forecast_fixed_costs")
+      .select("id, month, name, amount, sort_order")
+      .gte("month", from)
+      .lte("month", to)
+      .order("month")
+      .order("sort_order")
+      .order("created_at")
+      .returns<ForecastFixedCost[]>(),
+  ]);
+  if (projects.error) {
+    if (isMissingRelation(projects.error)) return null;
+    throw new Error(projects.error.message);
+  }
+  return { projects: projects.data ?? [], fixedCosts: fixedCosts.data ?? [] };
 }
 
 export async function fetchProjectOptionsForFinance(): Promise<{ id: string; client_name: string; archived: boolean }[]> {

@@ -1,28 +1,32 @@
 import Decimal from "decimal.js";
-import { format, parseISO } from "date-fns";
-import { balanceAt, monthKey, monthRange } from "@/lib/finance/calc";
-import { fetchCategories, fetchFinanceSettings, fetchForecast, fetchTransactions } from "@/lib/finance/queries";
+import { MigrationNeeded } from "@/components/layout/migration-needed";
+import { balanceAt, lastDayOfMonth, monthKey } from "@/lib/finance/calc";
+import { fetchFinanceSettings, fetchForecastYear, fetchTransactions } from "@/lib/finance/queries";
 import { todayISO, toDecimal } from "@/lib/format";
-import { ForecastView, type ForecastMonth } from "./forecast-view";
+import { ForecastView, type ActualMonth } from "./forecast-view";
 
 export const metadata = { title: "Forecast" };
 
-export default async function ForecastPage() {
+export default async function ForecastPage({ searchParams }: PageProps<"/financiar/forecast">) {
   const today = todayISO();
-  const months = monthRange(monthKey(today), 12);
-  const first = `${months[0]}-01`;
-  const [transactions, categories, forecast, settings] = await Promise.all([
-    fetchTransactions(),
-    fetchCategories(),
-    fetchForecast(first, `${months.at(-1)}-01`),
-    fetchFinanceSettings(),
-  ]);
+  const currentMonth = monthKey(today);
+  const params = await searchParams;
+  const yearParam = Number(params.an);
+  const year = Number.isInteger(yearParam) && yearParam >= 2020 && yearParam <= 2100 ? yearParam : Number(today.slice(0, 4));
+  const monthParam = Number(params.luna);
+  const selectedMonth =
+    Number.isInteger(monthParam) && monthParam >= 1 && monthParam <= 12
+      ? `${year}-${String(monthParam).padStart(2, "0")}`
+      : currentMonth.startsWith(String(year))
+        ? currentMonth
+        : `${year}-01`;
+
+  const [forecast, transactions, settings] = await Promise.all([fetchForecastYear(year), fetchTransactions(), fetchFinanceSettings()]);
+  if (!forecast) return <MigrationNeeded title="Forecast" file="20261015000007_forecast_pnl.sql" />;
 
   const opening = { balance: settings.opening_balance, date: settings.opening_balance_date };
-  // Soldul real la începutul perioadei (finalul lunii trecute).
-  const startBalance = balanceAt(transactions, format(parseISO(first).getTime() - 86_400_000, "yyyy-MM-dd"), false, opening);
-
-  const data: ForecastMonth[] = months.map((m) => {
+  const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
+  const actual: ActualMonth[] = months.map((m) => {
     const inMonth = transactions.filter((t) => t.effective_date.startsWith(m));
     const sum = (filter: (t: (typeof inMonth)[number]) => boolean) =>
       inMonth
@@ -35,16 +39,29 @@ export default async function ForecastPage() {
       plannedExpense: sum((t) => t.type === "expense"),
       realizedIncome: sum((t) => t.type === "income" && t.status === "realized"),
       realizedExpense: sum((t) => t.type === "expense" && t.status === "realized"),
+      // Pentru lunile trecute: soldul real de la final de lună (doar după data soldului inițial).
+      closingBalance:
+        m < currentMonth && lastDayOfMonth(m) >= opening.date
+          ? balanceAt(transactions, lastDayOfMonth(m), false, opening).toFixed(2)
+          : null,
     };
   });
 
+  // Soldul real la începutul lunii curente: de aici pornesc soldurile proiectate.
+  const [y, mo] = currentMonth.split("-").map(Number) as [number, number];
+  const dayBefore = new Date(Date.UTC(y, mo - 1, 0)).toISOString().slice(0, 10);
+  const startBalance = balanceAt(transactions, dayBefore, false, opening).toFixed(2);
+
   return (
     <ForecastView
-      months={data}
-      categories={categories.filter((c) => c.active || forecast.some((f) => f.category_id === c.id))}
-      entries={forecast}
-      startBalance={startBalance.toFixed(2)}
-      currentMonth={monthKey(today)}
+      key={year}
+      year={year}
+      selectedMonth={selectedMonth}
+      currentMonth={currentMonth}
+      projects={forecast.projects}
+      fixedCosts={forecast.fixedCosts}
+      actual={actual}
+      startBalance={startBalance}
     />
   );
 }

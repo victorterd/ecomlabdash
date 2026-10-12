@@ -44,6 +44,7 @@ Când apare o migrație nouă în `supabase/migrations/`, rulează doar fișieru
 | `20261012000004_finance.sql` | 4 |
 | `20261013000005_leads_order.sql` | ordinea taburilor la Lead-uri |
 | `20261014000006_services.sql` | servicii și pași (checklist) pe proiecte |
+| `20261015000007_forecast_pnl.sql` | forecast pe model P&L (proiecte estimate + costuri fixe) |
 
 ### Remindere și notificări (Etapa 5)
 
