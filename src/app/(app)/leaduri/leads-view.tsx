@@ -3,7 +3,17 @@
 import { useCallback, useDeferredValue, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, DownloadIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon, XIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
+  DownloadIcon,
+  PlusIcon,
+  SearchIcon,
+  Trash2Icon,
+  UploadIcon,
+  XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDeleteDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -35,6 +45,8 @@ const FOLLOW_LABELS: Record<FollowFilter, string> = {
 const PAGE_SIZE = 100;
 const ALL = "all";
 const NO_SOURCE = "none";
+// Companie, Website, Owner, Telefon, Email, Status, Sursă, Follow-up, Sunat de, Informații, Actualizat
+const COLUMN_WIDTHS = [230, 170, 150, 140, 210, 140, 130, 140, 120, 200, 130];
 
 export function LeadsView({
   initialLeads,
@@ -70,7 +82,8 @@ export function LeadsView({
     return fromUrl === "due" || fromUrl === "today" || fromUrl === "week" || fromUrl === "none" ? fromUrl : "all";
   });
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
-  const [page, setPage] = useState(0);
+  // Pagina curentă pentru fiecare tabel (în „Toate” e câte un tabel pe sursă).
+  const [pages, setPages] = useState<Record<string, number>>({});
   // ?lead=<id> deschide direct fișa (link din calendar / proiect).
   const [openId, setOpenId] = useState<string | null>(() => searchParams.get("lead"));
   // ?nou=1 (din butonul „+” / ⌘K) deschide direct formularul.
@@ -91,7 +104,7 @@ export function LeadsView({
 
   function setTab(value: string) {
     setTabState(value);
-    setPage(0);
+    setPages({});
     const url = new URL(window.location.href);
     if (value === ALL) url.searchParams.delete("status");
     else url.searchParams.set("status", value);
@@ -100,7 +113,7 @@ export function LeadsView({
 
   function setSourceFilter(value: string) {
     setSourceFilterState(value);
-    setPage(0);
+    setPages({});
     const url = new URL(window.location.href);
     if (value === ALL) url.searchParams.delete("sursa");
     else url.searchParams.set("sursa", value);
@@ -197,10 +210,6 @@ export function LeadsView({
     });
   }, [filtered, tab, sort, statusById, sourceById]);
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount - 1);
-  const pageRows = rows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
-
   const save = useCallback(
     (id: string, patch: Partial<Lead>) => {
       const before = leads.find((l) => l.id === id);
@@ -243,111 +252,29 @@ export function LeadsView({
   }
   const openLead = openId ? (leads.find((l) => l.id === openId) ?? null) : null;
 
-  return (
-    <div className="grid gap-4">
-      {/* Taburi pe status */}
-      <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
-        <div className="flex w-max gap-1 border-b">
-          <TabButton active={tab === ALL} onClick={() => setTab(ALL)} label="Toate" count={filtered.length} />
-          {statuses.map((s) => (
-            <TabButton
-              key={s.id}
-              active={tab === s.id}
-              onClick={() => setTab(s.id)}
-              label={s.name}
-              count={counts.get(s.id) ?? 0}
-              color={s.color}
-            />
-          ))}
-        </div>
-      </div>
+  // În tabul „Toate” (fără filtru de sursă) lead-urile se împart pe surse, câte un tabel pentru fiecare.
+  const grouped = tab === ALL && sourceFilter === ALL && rows.length > 0;
+  const groups = grouped
+    ? [...sourceTabs.map((s) => ({ key: s.id, label: s.name })), { key: NO_SOURCE, label: "Fără sursă" }]
+        .map((g) => ({ ...g, rows: rows.filter((l) => (l.source_id ?? NO_SOURCE) === g.key) }))
+        .filter((g) => g.rows.length > 0)
+    : [];
 
-      {/* Taburi pe sursă */}
-      <div className="-mx-3 -mt-1 overflow-x-auto px-3 sm:mx-0 sm:px-0">
-        <div className="flex w-max items-center gap-1.5">
-          <SourceTab active={sourceFilter === ALL} onClick={() => setSourceFilter(ALL)} label="Toate sursele" count={sourceCounts.get(ALL) ?? 0} />
-          {sourceTabs.map((s) => (
-            <SourceTab
-              key={s.id}
-              active={sourceFilter === s.id}
-              onClick={() => setSourceFilter(s.id)}
-              label={s.name}
-              count={sourceCounts.get(s.id) ?? 0}
-            />
-          ))}
-          {(sourceCounts.get(NO_SOURCE) ?? 0) > 0 || sourceFilter === NO_SOURCE ? (
-            <SourceTab
-              active={sourceFilter === NO_SOURCE}
-              onClick={() => setSourceFilter(NO_SOURCE)}
-              label="Fără sursă"
-              count={sourceCounts.get(NO_SOURCE) ?? 0}
-            />
-          ) : null}
-        </div>
-      </div>
-
-      {/* Filtre și acțiuni */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-full sm:w-72">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(0);
-            }}
-            placeholder="Caută companie, site, telefon, notițe…"
-            className="pl-8"
-          />
-        </div>
-        <Select
-          value={followFilter}
-          onValueChange={(v) => {
-            setFollowFilter(v as FollowFilter);
-            setPage(0);
-          }}
-        >
-          <SelectTrigger className="w-auto min-w-40">
-            <SelectValue>{FOLLOW_LABELS[followFilter]}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{FOLLOW_LABELS.all}</SelectItem>
-            <SelectItem value="due">{FOLLOW_LABELS.due}</SelectItem>
-            <SelectItem value="today">{FOLLOW_LABELS.today}</SelectItem>
-            <SelectItem value="week">{FOLLOW_LABELS.week}</SelectItem>
-            <SelectItem value="none">{FOLLOW_LABELS.none}</SelectItem>
-          </SelectContent>
-        </Select>
-        {hasFilters ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearch("");
-              setFollowFilter("all");
-            }}
-          >
-            <XIcon /> Resetează
-          </Button>
-        ) : null}
-        <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={() => exportLeadsCsv(rows, statusById, sourceById)}>
-          <DownloadIcon /> Export CSV
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/leaduri/import">
-            <UploadIcon /> Import
-          </Link>
-        </Button>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <PlusIcon /> Adaugă lead
-        </Button>
-      </div>
-
-      {/* Tabel */}
+  const renderTable = (key: string, tableRows: Lead[]) => {
+    const pageCount = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
+    const currentPage = Math.min(pages[key] ?? 0, pageCount - 1);
+    const pageRows = tableRows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+    const setPage = (value: number) => setPages((current) => ({ ...current, [key]: value }));
+    return (
       <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          {/* Lățimi fixe, ca tabelele pe surse să fie aliniate unul sub altul. */}
+          <table className="w-full min-w-[1760px] table-fixed text-sm">
+            <colgroup>
+              {COLUMN_WIDTHS.map((w, i) => (
+                <col key={i} style={{ width: w }} />
+              ))}
+            </colgroup>
             <thead className="table-head">
               <tr className="[&>th]:h-9 [&>th]:px-2 [&>th]:text-left [&>th]:font-medium [&>th]:whitespace-nowrap">
                 <SortHeader
@@ -495,8 +422,10 @@ export function LeadsView({
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           <span>
-            {rows.length} {rows.length === 1 ? "lead" : "lead-uri"}
-            {rows.length > PAGE_SIZE ? ` · ${currentPage * PAGE_SIZE + 1}–${Math.min(rows.length, (currentPage + 1) * PAGE_SIZE)}` : ""}
+            {tableRows.length} {tableRows.length === 1 ? "lead" : "lead-uri"}
+            {tableRows.length > PAGE_SIZE
+              ? ` · ${currentPage * PAGE_SIZE + 1}–${Math.min(tableRows.length, (currentPage + 1) * PAGE_SIZE)}`
+              : ""}
           </span>
           <span className="hidden items-center gap-3 sm:flex">
             <span className="inline-flex items-center gap-1.5">
@@ -521,6 +450,131 @@ export function LeadsView({
           ) : null}
         </div>
       </div>
+    );
+  };
+
+  return (
+    <div className="grid gap-4">
+      {/* Taburi pe status */}
+      <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
+        <div className="flex w-max gap-1 border-b">
+          <TabButton active={tab === ALL} onClick={() => setTab(ALL)} label="Toate" count={filtered.length} />
+          {statuses.map((s) => (
+            <TabButton
+              key={s.id}
+              active={tab === s.id}
+              onClick={() => setTab(s.id)}
+              label={s.name}
+              count={counts.get(s.id) ?? 0}
+              color={s.color}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Taburi pe sursă */}
+      <div className="-mx-3 -mt-1 overflow-x-auto px-3 sm:mx-0 sm:px-0">
+        <div className="flex w-max items-center gap-1.5">
+          <SourceTab
+            active={sourceFilter === ALL}
+            onClick={() => setSourceFilter(ALL)}
+            label="Toate sursele"
+            count={sourceCounts.get(ALL) ?? 0}
+          />
+          {sourceTabs.map((s) => (
+            <SourceTab
+              key={s.id}
+              active={sourceFilter === s.id}
+              onClick={() => setSourceFilter(s.id)}
+              label={s.name}
+              count={sourceCounts.get(s.id) ?? 0}
+            />
+          ))}
+          {(sourceCounts.get(NO_SOURCE) ?? 0) > 0 || sourceFilter === NO_SOURCE ? (
+            <SourceTab
+              active={sourceFilter === NO_SOURCE}
+              onClick={() => setSourceFilter(NO_SOURCE)}
+              label="Fără sursă"
+              count={sourceCounts.get(NO_SOURCE) ?? 0}
+            />
+          ) : null}
+        </div>
+      </div>
+
+      {/* Filtre și acțiuni */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-72">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPages({});
+            }}
+            placeholder="Caută companie, site, telefon, notițe…"
+            className="pl-8"
+          />
+        </div>
+        <Select
+          value={followFilter}
+          onValueChange={(v) => {
+            setFollowFilter(v as FollowFilter);
+            setPages({});
+          }}
+        >
+          <SelectTrigger className="w-auto min-w-40">
+            <SelectValue>{FOLLOW_LABELS[followFilter]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{FOLLOW_LABELS.all}</SelectItem>
+            <SelectItem value="due">{FOLLOW_LABELS.due}</SelectItem>
+            <SelectItem value="today">{FOLLOW_LABELS.today}</SelectItem>
+            <SelectItem value="week">{FOLLOW_LABELS.week}</SelectItem>
+            <SelectItem value="none">{FOLLOW_LABELS.none}</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasFilters ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setFollowFilter("all");
+            }}
+          >
+            <XIcon /> Resetează
+          </Button>
+        ) : null}
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" onClick={() => exportLeadsCsv(rows, statusById, sourceById)}>
+          <DownloadIcon /> Export CSV
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/leaduri/import">
+            <UploadIcon /> Import
+          </Link>
+        </Button>
+        <Button size="sm" onClick={() => setAddOpen(true)}>
+          <PlusIcon /> Adaugă lead
+        </Button>
+      </div>
+
+      {/* Tabel: în „Toate”, câte unul pe fiecare sursă */}
+      {grouped ? (
+        <div className="grid gap-8">
+          {groups.map((g) => (
+            <section key={g.key} className="grid gap-3">
+              <h2 className="flex items-baseline gap-2 text-lg font-semibold">
+                {g.label}
+                <span className="text-sm font-normal text-muted-foreground tabular-nums">{g.rows.length}</span>
+              </h2>
+              {renderTable(g.key, g.rows)}
+            </section>
+          ))}
+        </div>
+      ) : (
+        renderTable(ALL, rows)
+      )}
 
       <LeadSheet
         lead={openLead}
