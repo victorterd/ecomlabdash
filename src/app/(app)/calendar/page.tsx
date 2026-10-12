@@ -37,6 +37,13 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     return <MigrationNeeded title="Calendar" file="20261011000003_projects.sql" />;
   }
 
+  // Ce n-ai făcut în zilele trecute (follow-up-uri, pași de proiect) se mută pe azi.
+  // Dacă azi e în intervalul afișat, aducem și restanțele de dinainte de interval.
+  const todayInRange = today >= range.from && today <= range.to;
+  const pendingFrom = todayInRange ? "2000-01-01" : range.from;
+  const rollDate = (date: string) => (date < today ? today : date);
+  const inRange = (date: string) => date >= range.from && date <= range.to;
+
   const [shoots, services, actors, projectOptions, tasks, followUps, projectActors] = await Promise.all([
     fetchShoots(range),
     fetchServices(),
@@ -45,18 +52,21 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     // Pașii nebifați cu termen în intervalul afișat, pe proiectele active.
     supabase
       .from("project_tasks")
-      .select("id, title, due_date, service_id, project:projects!inner(id, client_name, archived)")
+      .select("id, title, due_date, service_id, project:projects!inner(id, client_name, archived, delivered_at)")
       .is("done_at", null)
-      .gte("due_date", range.from)
+      .is("project.delivered_at", null)
+      .gte("due_date", pendingFrom)
       .lte("due_date", range.to)
       .eq("project.archived", false)
-      .returns<{ id: string; title: string; due_date: string; service_id: string | null; project: { id: string; client_name: string } }[]>(),
+      .returns<
+        { id: string; title: string; due_date: string; service_id: string | null; project: { id: string; client_name: string } }[]
+      >(),
     profile.role === "productie"
       ? Promise.resolve({ data: [] })
       : supabase
           .from("leads")
           .select("id, company_name, follow_up_date, follow_up_time, status:lead_statuses!inner(is_closed)")
-          .gte("follow_up_date", range.from)
+          .gte("follow_up_date", pendingFrom)
           .lte("follow_up_date", range.to)
           .eq("status.is_closed", false)
           .returns<{ id: string; company_name: string; follow_up_date: string; follow_up_time: string | null }[]>(),
@@ -93,26 +103,30 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       detail: "Deadline livrare",
       href: `/proiecte/${p.id}`,
     })),
-    ...(tasks.data ?? []).map(
-      (t): CalendarEvent => ({
+    ...(tasks.data ?? [])
+      .filter((t) => inRange(rollDate(t.due_date)))
+      .map((t): CalendarEvent => ({
         id: `stage-${t.id}`,
         kind: "stage",
-        date: t.due_date,
+        date: rollDate(t.due_date),
+        carriedFrom: t.due_date < today ? t.due_date : undefined,
         title: t.project.client_name,
         detail: t.title,
         color: t.service_id ? serviceById.get(t.service_id)?.color : undefined,
         href: `/proiecte/${t.project.id}`,
-      }),
-    ),
-    ...(followUps.data ?? []).map((l): CalendarEvent => ({
-      id: `lead-${l.id}`,
-      kind: "followup",
-      date: l.follow_up_date,
-      time: l.follow_up_time,
-      title: l.company_name,
-      detail: "Follow-up",
-      href: `/leaduri?lead=${l.id}`,
-    })),
+      })),
+    ...(followUps.data ?? [])
+      .filter((l) => inRange(rollDate(l.follow_up_date)))
+      .map((l): CalendarEvent => ({
+        id: `lead-${l.id}`,
+        kind: "followup",
+        date: rollDate(l.follow_up_date),
+        carriedFrom: l.follow_up_date < today ? l.follow_up_date : undefined,
+        time: l.follow_up_date < today ? null : l.follow_up_time,
+        title: l.company_name,
+        detail: "Follow-up",
+        href: `/leaduri?lead=${l.id}`,
+      })),
   ];
 
   const projectActorIds: Record<string, string[]> = {};

@@ -9,7 +9,7 @@ import { CalendarPlusIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-reac
 import { ShootDialog, type ProjectOption } from "@/components/shoot-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatTime } from "@/lib/format";
+import { formatDate, formatTime } from "@/lib/format";
 import type { Actor, Shoot } from "@/lib/projects/types";
 import { dropSearchParam } from "@/lib/url";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,8 @@ export type CalendarEvent = {
   color?: string;
   href?: string;
   shoot?: Shoot;
+  /** Data inițială, dacă e un lucru nefăcut mutat pe azi. */
+  carriedFrom?: string;
 };
 
 type Kind = CalendarEvent["kind"];
@@ -106,7 +108,12 @@ export function CalendarView({
       map.set(e.date, [...(map.get(e.date) ?? []), e]);
     }
     const order: Record<Kind, number> = { deadline: 0, shoot: 1, stage: 2, followup: 3 };
-    for (const list of map.values()) list.sort((a, b) => order[a.kind] - order[b.kind] || (a.time ?? "").localeCompare(b.time ?? ""));
+    // Restanțele mutate pe azi vin primele.
+    for (const list of map.values())
+      list.sort(
+        (a, b) =>
+          Number(!a.carriedFrom) - Number(!b.carriedFrom) || order[a.kind] - order[b.kind] || (a.time ?? "").localeCompare(b.time ?? ""),
+      );
     return map;
   }, [events, enabled]);
 
@@ -130,9 +137,16 @@ export function CalendarView({
         ev.stopPropagation();
         openEvent(e);
       }}
-      className={cn("w-full truncate rounded border-l-2 px-1.5 py-0.5 text-left text-xs hover:brightness-95", KIND_STYLE[e.kind])}
-      title={[e.time ? formatTime(e.time) : null, e.title, e.detail].filter(Boolean).join(" · ")}
+      className={cn(
+        "w-full truncate rounded border-l-2 px-1.5 py-0.5 text-left text-xs hover:brightness-95",
+        KIND_STYLE[e.kind],
+        e.carriedFrom && "ring-1 ring-destructive/40 ring-inset",
+      )}
+      title={[e.carriedFrom ? `Rămas din ${formatDate(e.carriedFrom)}` : null, e.time ? formatTime(e.time) : null, e.title, e.detail]
+        .filter(Boolean)
+        .join(" · ")}
     >
+      {e.carriedFrom ? <span className="mr-1 font-medium text-destructive">↻ {formatDate(e.carriedFrom).slice(0, 5)}</span> : null}
       {e.time ? <span className="mr-1 tabular-nums opacity-70">{formatTime(e.time)}</span> : null}
       <span className="font-medium">{e.title}</span>
       {!compact && e.detail ? <span className="block truncate opacity-70">{e.detail}</span> : null}

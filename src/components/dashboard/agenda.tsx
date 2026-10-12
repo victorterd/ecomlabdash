@@ -5,28 +5,28 @@ import { CalendarCheck2Icon } from "lucide-react";
 import type { Reminder } from "@/lib/reminders/collect";
 import { cn } from "@/lib/utils";
 
-type TabKey = "today" | "overdue" | "upcoming";
+type TabKey = "today" | "upcoming";
 
-/** Agenda de pe Dashboard: Azi / Restante / Următoarele zile, într-un singur card. */
+/** Agenda de pe Dashboard: Azi (inclusiv ce a rămas din zilele trecute) / Următoarele zile. */
 export function Agenda({
   today,
-  overdue,
+  carried,
   upcoming,
   render,
 }: {
   today: Reminder[];
-  overdue: Reminder[];
+  /** Câte din „Azi” au rămas din zilele trecute. */
+  carried: number;
   upcoming: Reminder[];
   render: Record<TabKey, React.ReactNode>;
 }) {
-  const [tab, setTab] = useState<TabKey>(today.length || !overdue.length ? "today" : "overdue");
+  const [tab, setTab] = useState<TabKey>("today");
   const tabs: { key: TabKey; label: string; count: number; tone?: "bad" }[] = [
-    { key: "today", label: "Azi", count: today.length },
-    { key: "overdue", label: "Restante", count: overdue.length, tone: "bad" },
+    { key: "today", label: "Azi", count: today.length, tone: carried ? "bad" : undefined },
     { key: "upcoming", label: "Următoarele 3 zile", count: upcoming.length },
   ];
-  const empty = { today: "Nimic programat pentru azi.", overdue: "Nicio restanță. Bravo!", upcoming: "Nimic în următoarele 3 zile." }[tab];
-  const count = { today: today.length, overdue: overdue.length, upcoming: upcoming.length }[tab];
+  const empty = { today: "Nimic de făcut azi. Totul e la zi!", upcoming: "Nimic în următoarele 3 zile." }[tab];
+  const count = { today: today.length, upcoming: upcoming.length }[tab];
 
   return (
     <section className="surface flex min-w-0 flex-col">

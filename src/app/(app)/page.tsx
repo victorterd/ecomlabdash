@@ -47,26 +47,33 @@ export default async function DashboardPage() {
   ]);
 
   const tomorrow = format(addDays(parseISO(today), 1), "yyyy-MM-dd");
-  // „Azi” include și filmările de mâine (pregătire).
-  const todo = [...reminders.today, ...reminders.upcoming.filter((r) => r.kind === "shoot" && r.date === tomorrow)];
-  const upcoming = reminders.upcoming.filter((r) => !todo.includes(r));
+  // „Azi” = ce e programat azi + filmările de mâine (pregătire). Ce a rămas nefăcut din zilele trecute se adaugă tot aici.
+  const scheduled = [...reminders.today, ...reminders.upcoming.filter((r) => r.kind === "shoot" && r.date === tomorrow)];
+  const carried = [...reminders.overdue].reverse();
+  const todo = [...carried, ...scheduled];
+  const upcoming = reminders.upcoming.filter((r) => !scheduled.includes(r));
   const firstName = profile.full_name.split(" ")[0] || "";
-  const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: "Europe/Bucharest" }).format(new Date()));
-  const followUpsToday = reminders.today.filter((r) => r.kind === "followup").length + reminders.overdue.filter((r) => r.kind === "followup").length;
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: "Europe/Bucharest" }).format(new Date()),
+  );
+  const followUpsToday =
+    reminders.today.filter((r) => r.kind === "followup").length + reminders.overdue.filter((r) => r.kind === "followup").length;
   const shootsWeek = [...reminders.today, ...reminders.upcoming].filter((r) => r.kind === "shoot").length;
 
   return (
     <div className="grid grid-cols-1 gap-6 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground first-letter:uppercase">{format(parseISO(today), "EEEE, d MMMM yyyy", { locale: ro })}</p>
+          <p className="text-sm text-muted-foreground first-letter:uppercase">
+            {format(parseISO(today), "EEEE, d MMMM yyyy", { locale: ro })}
+          </p>
           <h1 className="mt-1 text-[28px] leading-tight font-semibold tracking-tight">
             {greeting(hour)}
             {firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {todo.length || reminders.overdue.length
-              ? `Ai ${todo.length} ${todo.length === 1 ? "lucru" : "lucruri"} pentru azi${reminders.overdue.length ? ` și ${reminders.overdue.length} restante` : ""}.`
+            {todo.length
+              ? `Ai ${todo.length} ${todo.length === 1 ? "lucru" : "lucruri"} de făcut azi${carried.length ? `, din care ${carried.length} ${carried.length === 1 ? "rămas" : "rămase"} din zilele trecute` : ""}.`
               : "Nimic urgent azi. Zi liniștită!"}
           </p>
         </div>
@@ -89,7 +96,12 @@ export default async function DashboardPage() {
       </div>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard icon={ListTodoIcon} label="De făcut azi" value={String(todo.length)} hint={todo.length ? "vezi agenda" : "nimic programat"} />
+        <StatCard
+          icon={ListTodoIcon}
+          label="De făcut azi"
+          value={String(todo.length)}
+          hint={carried.length ? `${carried.length} rămase de ieri și dinainte` : todo.length ? "vezi agenda" : "nimic programat"}
+        />
         <StatCard
           icon={AlertTriangleIcon}
           label="Restante"
@@ -98,25 +110,58 @@ export default async function DashboardPage() {
           hint={reminders.overdue.length ? "de rezolvat" : "totul la zi"}
         />
         {seesLeads ? (
-          <StatCard icon={PhoneCallIcon} label="Follow-up-uri" value={String(followUpsToday)} hint="azi și restante" href="/leaduri?follow=due" />
+          <StatCard
+            icon={PhoneCallIcon}
+            label="Follow-up-uri"
+            value={String(followUpsToday)}
+            hint="azi și restante"
+            href="/leaduri?follow=due"
+          />
         ) : (
           <StatCard icon={ClapperboardIcon} label="Filmări" value={String(shootsWeek)} hint="în următoarele 3 zile" href="/calendar" />
         )}
         {money ? (
-          <StatCard icon={WalletIcon} label="Sold curent" value={formatRON(money.balance)} hint={`încasat luna asta ${formatRON(money.received)}`} href="/financiar" accent />
+          <StatCard
+            icon={WalletIcon}
+            label="Sold curent"
+            value={formatRON(money.balance)}
+            hint={`încasat luna asta ${formatRON(money.received)}`}
+            href="/financiar"
+            accent
+          />
         ) : (
-          <StatCard icon={ClapperboardIcon} label="Proiecte active" value={String(projectsBlock?.active ?? 0)} hint="în lucru" href="/proiecte" />
+          <StatCard
+            icon={ClapperboardIcon}
+            label="Proiecte active"
+            value={String(projectsBlock?.active ?? 0)}
+            hint="în lucru"
+            href="/proiecte"
+          />
         )}
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Agenda
           today={todo}
-          overdue={reminders.overdue}
+          carried={carried.length}
           upcoming={upcoming}
           render={{
-            today: <ReminderList items={todo} today={today} empty="" limit={30} />,
-            overdue: <ReminderList items={[...reminders.overdue].reverse()} today={today} empty="" limit={30} />,
+            today: (
+              <>
+                {carried.length ? (
+                  <>
+                    <div className="px-2 pt-2 pb-1 text-xs font-medium text-destructive">Rămase din zilele trecute · {carried.length}</div>
+                    <ReminderList items={carried} today={today} empty="" limit={30} />
+                    {scheduled.length ? (
+                      <div className="mt-2 border-t px-2 pt-3 pb-1 text-xs font-medium text-muted-foreground">
+                        Programate azi · {scheduled.length}
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+                {scheduled.length ? <ReminderList items={scheduled} today={today} empty="" limit={30} /> : null}
+              </>
+            ),
             upcoming: <ReminderList items={upcoming} today={today} empty="" limit={30} />,
           }}
         />
@@ -138,7 +183,9 @@ export default async function DashboardPage() {
                   <div className="h-1.5 overflow-hidden rounded-full bg-border">
                     <div
                       className="h-full rounded-full bg-brand"
-                      style={{ width: `${Math.min(100, money.received.plus(money.toReceive).isZero() ? 0 : money.received.div(money.received.plus(money.toReceive)).times(100).toNumber())}%` }}
+                      style={{
+                        width: `${Math.min(100, money.received.plus(money.toReceive).isZero() ? 0 : money.received.div(money.received.plus(money.toReceive)).times(100).toNumber())}%`,
+                      }}
                     />
                   </div>
                   <div className="mt-1.5 text-[11px] text-muted-foreground">
@@ -162,7 +209,10 @@ export default async function DashboardPage() {
                       </span>
                     </div>
                     <span className="h-1.5 overflow-hidden rounded-full bg-muted">
-                      <span className="block h-full rounded-full bg-brand" style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }} />
+                      <span
+                        className="block h-full rounded-full bg-brand"
+                        style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }}
+                      />
                     </span>
                     {p.next ? (
                       <span className="truncate text-xs text-muted-foreground">
@@ -197,10 +247,16 @@ export default async function DashboardPage() {
                 <div className="mt-4 border-t pt-3">
                   <div className="mb-1.5 text-xs font-medium text-muted-foreground">Următoarele deadline-uri</div>
                   {projectsBlock.upcoming.map((p) => (
-                    <Link key={p.id} href={`/proiecte/${p.id}`} className="-mx-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/60">
+                    <Link
+                      key={p.id}
+                      href={`/proiecte/${p.id}`}
+                      className="-mx-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/60"
+                    >
                       <CalendarClockIcon className={cn("size-3.5 shrink-0", p.soon ? "text-warning" : "text-muted-foreground")} />
                       <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                      <span className={cn("shrink-0 text-xs tabular-nums", p.soon ? "font-medium text-warning" : "text-muted-foreground")}>{formatDate(p.deadline)}</span>
+                      <span className={cn("shrink-0 text-xs tabular-nums", p.soon ? "font-medium text-warning" : "text-muted-foreground")}>
+                        {formatDate(p.deadline)}
+                      </span>
                     </Link>
                   ))}
                 </div>
@@ -287,7 +343,10 @@ function Panel({ title, subtitle, href, children }: { title: string; subtitle?: 
           {subtitle ? <p className="text-xs text-muted-foreground first-letter:uppercase">{subtitle}</p> : null}
         </div>
         {href ? (
-          <Link href={href} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
             Deschide <ArrowRightIcon className="size-3.5" />
           </Link>
         ) : null}
