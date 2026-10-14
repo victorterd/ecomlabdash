@@ -47,6 +47,16 @@ export type DuplicateMatch = {
   matched_on: "website" | "email" | "telefon";
 };
 
+/** Un follow-up făcut: rezultatul, notița și următoarea dată. */
+export type LeadActivity = {
+  id: string;
+  done_on: string;
+  note: string | null;
+  status_id: string | null;
+  next_follow_up: string | null;
+  created_at: string;
+};
+
 export type StatusHistoryEntry = {
   id: string;
   from_status_id: string | null;

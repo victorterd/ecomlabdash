@@ -21,6 +21,7 @@ import { balanceAt, lastDayOfMonth, monthKey } from "@/lib/finance/calc";
 import { fetchFinanceSettings, fetchTransactions } from "@/lib/finance/queries";
 import { formatDate, formatRON, todayISO, toDecimal } from "@/lib/format";
 import { projectHealth, sortTasks } from "@/lib/projects/health";
+import { fetchLeadLists } from "@/lib/leads/queries";
 import { fetchAppSettings, fetchProjectList, fetchServices } from "@/lib/projects/queries";
 import { getMyReminders } from "@/lib/reminders/server";
 import { cn } from "@/lib/utils";
@@ -40,11 +41,20 @@ export default async function DashboardPage() {
   const seesLeads = profile.role !== "productie";
   const today = todayISO();
 
-  const [reminders, money, projectsBlock] = await Promise.all([
+  const [reminders, money, projectsBlock, leadLists, appSettings] = await Promise.all([
     getMyReminders(),
     isAdmin ? moneyThisMonth(today).catch(() => null) : null,
     seesProjects ? projectsSummary(isAdmin, today).catch(() => null) : null,
+    seesLeads ? fetchLeadLists() : null,
+    fetchAppSettings(),
   ]);
+  // Butonul „✓ am făcut follow-up” din agendă.
+  const followUp = leadLists
+    ? {
+        statuses: leadLists.statuses,
+        settings: { followUpDays: appSettings.follow_up_days, defaultTime: appSettings.follow_up_default_time.slice(0, 5) },
+      }
+    : undefined;
 
   const tomorrow = format(addDays(parseISO(today), 1), "yyyy-MM-dd");
   // „Azi” = ce e programat azi + filmările de mâine (pregătire). Ce a rămas nefăcut din zilele trecute se adaugă tot aici.
@@ -151,7 +161,7 @@ export default async function DashboardPage() {
                 {carried.length ? (
                   <>
                     <div className="px-2 pt-2 pb-1 text-xs font-medium text-destructive">Rămase din zilele trecute · {carried.length}</div>
-                    <ReminderList items={carried} today={today} empty="" limit={30} />
+                    <ReminderList items={carried} today={today} empty="" limit={30} followUp={followUp} />
                     {scheduled.length ? (
                       <div className="mt-2 border-t px-2 pt-3 pb-1 text-xs font-medium text-muted-foreground">
                         Programate azi · {scheduled.length}
@@ -159,10 +169,10 @@ export default async function DashboardPage() {
                     ) : null}
                   </>
                 ) : null}
-                {scheduled.length ? <ReminderList items={scheduled} today={today} empty="" limit={30} /> : null}
+                {scheduled.length ? <ReminderList items={scheduled} today={today} empty="" limit={30} followUp={followUp} /> : null}
               </>
             ),
-            upcoming: <ReminderList items={upcoming} today={today} empty="" limit={30} />,
+            upcoming: <ReminderList items={upcoming} today={today} empty="" limit={30} followUp={followUp} />,
           }}
         />
 

@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireProfile } from "@/lib/auth";
-import { type DuplicateMatch, LEAD_COLUMNS, type Lead, type StatusHistoryEntry } from "@/lib/leads/types";
+import { type DuplicateMatch, LEAD_COLUMNS, type Lead, type LeadActivity, type StatusHistoryEntry } from "@/lib/leads/types";
 import { cleanPhone } from "@/lib/leads/normalize";
 import { createClient } from "@/lib/supabase/server";
+import { todayISO } from "@/lib/format";
 import { timeInput } from "@/lib/validation";
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -145,16 +146,83 @@ export async function deleteLead(id: string): Promise<Result<null>> {
   return { ok: true, data: null };
 }
 
-export async function getLeadHistory(id: string): Promise<Result<StatusHistoryEntry[]>> {
+export type LeadHistory = { statuses: StatusHistoryEntry[]; activities: LeadActivity[] };
+
+export async function getLeadHistory(id: string): Promise<Result<LeadHistory>> {
   await requireLeadAccess();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("lead_status_history")
-    .select("id, from_status_id, to_status_id, changed_at")
-    .eq("lead_id", id)
-    .order("changed_at", { ascending: false })
-    .returns<StatusHistoryEntry[]>();
+  const [statuses, activities] = await Promise.all([
+    supabase
+      .from("lead_status_history")
+      .select("id, from_status_id, to_status_id, changed_at")
+      .eq("lead_id", id)
+      .order("changed_at", { ascending: false })
+      .returns<StatusHistoryEntry[]>(),
+    supabase
+      .from("lead_activities")
+      .select("id, done_on, note, status_id, next_follow_up, created_at")
+      .eq("lead_id", id)
+      .order("done_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .returns<LeadActivity[]>(),
+  ]);
+  if (statuses.error) return { ok: false, error: errorMessage(statuses.error) };
+  // Fără migrația follow-up-urilor, istoricul arată doar statusurile.
+  return { ok: true, data: { statuses: statuses.data, activities: activities.data ?? [] } };
+}
+
+/** Lead-ul cu datele de care are nevoie fereastra „Am făcut follow-up”. */
+export async function getLead(id: string): Promise<Result<Lead>> {
+  await requireLeadAccess();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("leads").select(LEAD_COLUMNS).eq("id", id).single<Lead>();
   if (error) return { ok: false, error: errorMessage(error) };
+  return { ok: true, data };
+}
+
+const followUpSchema = z.object({
+  done_on: z.iso.date("Dată invalidă"),
+  note: optionalText,
+  status_id: z.uuid("Alege rezultatul"),
+  next_follow_up: z.iso.date("Dată invalidă").nullable(),
+  next_time: timeInput.nullable(),
+});
+
+/**
+ * „Am făcut follow-up”: salvează ce s-a întâmplat în istoric, schimbă statusul
+ * și pune data următorului follow-up (sau o scoate, dacă nu mai e nevoie).
+ */
+export async function logFollowUp(leadId: string, values: z.input<typeof followUpSchema>): Promise<Result<Lead>> {
+  await requireLeadAccess();
+  const parsedId = z.uuid().safeParse(leadId);
+  const parsed = followUpSchema.safeParse(values);
+  if (!parsedId.success || !parsed.success) return { ok: false, error: parsed.error?.issues[0]?.message ?? "Date invalide" };
+  const v = parsed.data;
+  if (v.done_on > todayISO()) return { ok: false, error: "Data follow-up-ului nu poate fi în viitor." };
+
+  const supabase = await createClient();
+  const { error: logError } = await supabase.from("lead_activities").insert({
+    lead_id: parsedId.data,
+    done_on: v.done_on,
+    note: v.note,
+    status_id: v.status_id,
+    next_follow_up: v.next_follow_up,
+  });
+  if (logError) {
+    if (logError.code === "PGRST205" || logError.code === "42P01") {
+      return { ok: false, error: "Rulează în Supabase migrația 20261016000008_lead_activities.sql." };
+    }
+    return { ok: false, error: errorMessage(logError) };
+  }
+
+  const { data, error } = await supabase
+    .from("leads")
+    .update({ status_id: v.status_id, follow_up_date: v.next_follow_up, follow_up_time: v.next_follow_up ? v.next_time : null })
+    .eq("id", parsedId.data)
+    .select(LEAD_COLUMNS)
+    .single<Lead>();
+  if (error) return { ok: false, error: errorMessage(error) };
+  revalidatePath("/", "layout");
   return { ok: true, data };
 }
 

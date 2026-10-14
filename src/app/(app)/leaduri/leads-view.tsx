@@ -29,6 +29,7 @@ import { deleteLead, updateLead } from "./actions";
 import { AddLeadDialog } from "./add-lead-dialog";
 import { FollowUpCell, followUpState, InlineText, SourceMenu, StatusMenu } from "./cells";
 import { exportLeadsCsv } from "./export";
+import type { FollowUpSettings } from "./follow-up-dialog";
 import { LeadSheet } from "./lead-sheet";
 
 type SortKey = "company_name" | "status" | "source" | "follow_up_date" | "updated_at" | "created_at";
@@ -54,6 +55,7 @@ export function LeadsView({
   sources,
   today,
   weekEnd,
+  followUpSettings,
   leadProjects,
   canCreateProject,
 }: {
@@ -64,6 +66,7 @@ export function LeadsView({
   sources: LeadSource[];
   today: string;
   weekEnd: string;
+  followUpSettings: FollowUpSettings;
 }) {
   const searchParams = useSearchParams();
   const [leads, setLeads] = useState(initialLeads);
@@ -592,6 +595,8 @@ export function LeadsView({
           }
         }}
         onSave={save}
+        followUpSettings={followUpSettings}
+        onFollowUpSaved={(saved) => setLeads((current) => current.map((l) => (l.id === saved.id ? saved : l)))}
         onDeleted={(id) => {
           setLeads((current) => current.filter((l) => l.id !== id));
           setOpenId(null);

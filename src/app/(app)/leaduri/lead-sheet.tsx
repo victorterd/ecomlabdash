@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowRightIcon, ClapperboardIcon, ExternalLinkIcon, MailIcon, PhoneIcon, Trash2Icon } from "lucide-react";
+import { ArrowRightIcon, ClapperboardIcon, ExternalLinkIcon, MailIcon, PhoneCallIcon, PhoneIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDeleteDialog } from "@/components/confirm-dialog";
 import { DateField } from "@/components/date-field";
@@ -12,11 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDateTime, formatTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatTime } from "@/lib/format";
 import { formatPhone, websiteHref } from "@/lib/leads/normalize";
-import type { Lead, StatusHistoryEntry } from "@/lib/leads/types";
+import type { Lead } from "@/lib/leads/types";
 import type { LeadSource, LeadStatus } from "@/lib/types";
-import { deleteLead, getLeadHistory } from "./actions";
+import { deleteLead, getLeadHistory, type LeadHistory } from "./actions";
+import { FollowUpDialog, type FollowUpSettings } from "./follow-up-dialog";
 import { SourceMenu, StatusMenu, followUpState } from "./cells";
 
 export function LeadSheet({
@@ -29,7 +30,11 @@ export function LeadSheet({
   onDeleted,
   leadProjects,
   canCreateProject,
+  followUpSettings,
+  onFollowUpSaved,
 }: {
+  followUpSettings: FollowUpSettings;
+  onFollowUpSaved: (lead: Lead) => void;
   leadProjects: Record<string, string>;
   canCreateProject: boolean;
   lead: Lead | null;
@@ -54,6 +59,8 @@ export function LeadSheet({
             onDeleted={onDeleted}
             projectId={leadProjects[lead.id] ?? null}
             canCreateProject={canCreateProject}
+            followUpSettings={followUpSettings}
+            onFollowUpSaved={onFollowUpSaved}
           />
         ) : (
           <SheetTitle className="sr-only">Lead</SheetTitle>
@@ -72,7 +79,11 @@ function LeadDetails({
   onDeleted,
   projectId,
   canCreateProject,
+  followUpSettings,
+  onFollowUpSaved,
 }: {
+  followUpSettings: FollowUpSettings;
+  onFollowUpSaved: (lead: Lead) => void;
   projectId: string | null;
   canCreateProject: boolean;
   lead: Lead;
@@ -82,7 +93,9 @@ function LeadDetails({
   onSave: (id: string, patch: Partial<Lead>) => void;
   onDeleted: (id: string) => void;
 }) {
-  const [history, setHistory] = useState<StatusHistoryEntry[] | null>(null);
+  const [history, setHistory] = useState<LeadHistory | null>(null);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [historyVersion, setHistoryVersion] = useState(0);
   const [deleting, startDelete] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const status = statuses.find((s) => s.id === lead.status_id);
@@ -99,7 +112,7 @@ function LeadDetails({
     return () => {
       cancelled = true;
     };
-  }, [lead.id, lead.status_id]);
+  }, [lead.id, lead.status_id, historyVersion]);
 
   const field = (key: keyof Lead, label: string, props?: React.ComponentProps<typeof Input>) => (
     <div className="grid gap-1.5">
@@ -172,6 +185,12 @@ function LeadDetails({
             <SourceMenu sources={sources} value={lead.source_id} onChange={(id) => save({ source_id: id })} className="-ml-1.5" />
           </div>
         </div>
+
+        {!status?.is_closed ? (
+          <Button variant="outline" className="w-full justify-center" onClick={() => setFollowUpOpen(true)}>
+            <PhoneCallIcon /> Am făcut follow-up
+          </Button>
+        ) : null}
 
         {projectId ? (
           <div className="flex items-center justify-between gap-3 rounded-lg border border-brand/40 bg-accent px-3 py-2.5">
@@ -268,31 +287,58 @@ function LeadDetails({
         </div>
 
         <div className="grid gap-2">
-          <h3 className="text-sm font-semibold">Istoric status</h3>
+          <h3 className="text-sm font-semibold">Istoric</h3>
           {history === null ? (
             <p className="text-xs text-muted-foreground">Se încarcă…</p>
-          ) : history.length === 0 ? (
+          ) : history.statuses.length === 0 && history.activities.length === 0 ? (
             <p className="text-xs text-muted-foreground">Fără schimbări.</p>
           ) : (
-            <ol className="grid gap-2">
-              {history.map((h) => {
-                const from = h.from_status_id ? statusById.get(h.from_status_id) : null;
-                const to = h.to_status_id ? statusById.get(h.to_status_id) : null;
-                return (
-                  <li key={h.id} className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="w-28 shrink-0 text-muted-foreground tabular-nums">{formatDateTime(h.changed_at)}</span>
-                    {from ? (
-                      <>
-                        <ColorBadge color={from.color}>{from.name}</ColorBadge>
-                        <ArrowRightIcon className="size-3 text-muted-foreground" />
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">creat ca</span>
-                    )}
-                    {to ? <ColorBadge color={to.color}>{to.name}</ColorBadge> : <span className="text-muted-foreground">status șters</span>}
-                  </li>
-                );
-              })}
+            <ol className="grid gap-2.5">
+              {[
+                ...history.activities.map((a) => ({ key: `a-${a.id}`, at: `${a.done_on}T23:59:59|${a.created_at}`, activity: a })),
+                ...history.statuses.map((h) => ({ key: `s-${h.id}`, at: h.changed_at, change: h })),
+              ]
+                .sort((x, y) => y.at.localeCompare(x.at))
+                .map((entry) => {
+                  if ("activity" in entry) {
+                    const a = entry.activity;
+                    const result = a.status_id ? statusById.get(a.status_id) : null;
+                    return (
+                      <li key={entry.key} className="grid gap-1 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <PhoneCallIcon className="size-3.5 text-muted-foreground" />
+                          <span className="font-medium">Follow-up {formatDate(a.done_on)}</span>
+                          {result ? <ColorBadge color={result.color}>{result.name}</ColorBadge> : null}
+                          {a.next_follow_up ? (
+                            <span className="text-muted-foreground">· următorul {formatDate(a.next_follow_up)}</span>
+                          ) : null}
+                        </div>
+                        {a.note ? <p className="text-sm whitespace-pre-line">{a.note}</p> : null}
+                      </li>
+                    );
+                  }
+                  const h = entry.change;
+                  const from = h.from_status_id ? statusById.get(h.from_status_id) : null;
+                  const to = h.to_status_id ? statusById.get(h.to_status_id) : null;
+                  return (
+                    <li key={entry.key} className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="w-28 shrink-0 text-muted-foreground tabular-nums">{formatDateTime(h.changed_at)}</span>
+                      {from ? (
+                        <>
+                          <ColorBadge color={from.color}>{from.name}</ColorBadge>
+                          <ArrowRightIcon className="size-3 text-muted-foreground" />
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">creat ca</span>
+                      )}
+                      {to ? (
+                        <ColorBadge color={to.color}>{to.name}</ColorBadge>
+                      ) : (
+                        <span className="text-muted-foreground">status șters</span>
+                      )}
+                    </li>
+                  );
+                })}
             </ol>
           )}
         </div>
@@ -301,16 +347,24 @@ function LeadDetails({
           <span>
             Creat {formatDateTime(lead.created_at)} · modificat {formatDateTime(lead.updated_at)}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:bg-destructive/10"
-            onClick={() => setConfirmDelete(true)}
-          >
+          <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
             <Trash2Icon /> Șterge lead
           </Button>
         </div>
       </div>
+
+      <FollowUpDialog
+        lead={lead}
+        open={followUpOpen}
+        onOpenChange={setFollowUpOpen}
+        statuses={statuses}
+        settings={followUpSettings}
+        today={today}
+        onSaved={(saved) => {
+          onFollowUpSaved(saved);
+          setHistoryVersion((v) => v + 1);
+        }}
+      />
 
       <ConfirmDeleteDialog
         open={confirmDelete}

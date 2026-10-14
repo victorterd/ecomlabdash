@@ -1,4 +1,7 @@
 import Link from "next/link";
+import type { FollowUpSettings } from "@/app/(app)/leaduri/follow-up-dialog";
+import { FollowUpCheck } from "@/app/(app)/leaduri/follow-up-check";
+import type { LeadStatus } from "@/lib/types";
 import {
   ArrowDownLeftIcon,
   ArrowUpRightIcon,
@@ -48,7 +51,10 @@ export function ReminderList({
   empty,
   limit = 8,
   moreHref,
+  followUp,
 }: {
+  /** Dacă e dat, follow-up-urile au butonul „✓ am făcut follow-up”. */
+  followUp?: { statuses: LeadStatus[]; settings: FollowUpSettings };
   items: Reminder[];
   today: string;
   empty: string;
@@ -84,6 +90,14 @@ export function ReminderList({
                 {whenLabel(item.date, today)}
               </div>
             </div>
+            {followUp && item.kind === "followup" ? (
+              <FollowUpCheck
+                leadId={item.id.replace(/^followup-/, "")}
+                statuses={followUp.statuses}
+                settings={followUp.settings}
+                today={today}
+              />
+            ) : null}
             {item.phone ? (
               <a
                 href={`tel:${item.phone.split(",")[0]}`}
