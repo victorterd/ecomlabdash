@@ -23,7 +23,14 @@ import { formatDate, formatPercent, formatRON } from "@/lib/format";
 import { fold } from "@/lib/leads/normalize";
 import { daysBetween, projectHealth, sortTasks, type ProjectHealth } from "@/lib/projects/health";
 import { projectMoney, type ProjectMoney } from "@/lib/projects/money";
-import { PROJECT_TYPE_LABEL, type Project, type ProjectFinance, type ProjectTask, type Service, type Transaction } from "@/lib/projects/types";
+import {
+  PROJECT_TYPE_LABEL,
+  type Project,
+  type ProjectFinance,
+  type ProjectTask,
+  type Service,
+  type Transaction,
+} from "@/lib/projects/types";
 import { cn } from "@/lib/utils";
 import { updateTask } from "./actions";
 
@@ -91,7 +98,11 @@ export function ProjectsView({
   const servicesByProject = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const ps of projectServices) map.set(ps.project_id, [...(map.get(ps.project_id) ?? []), ps.service_id]);
-    for (const [id, list] of map) map.set(id, list.sort((a, b) => (serviceById.get(a)?.sort_order ?? 0) - (serviceById.get(b)?.sort_order ?? 0)));
+    for (const [id, list] of map)
+      map.set(
+        id,
+        list.sort((a, b) => (serviceById.get(a)?.sort_order ?? 0) - (serviceById.get(b)?.sort_order ?? 0)),
+      );
     return map;
   }, [projectServices, serviceById]);
   const financeByProject = useMemo(() => new Map(finance.map((f) => [f.project_id, f])), [finance]);
@@ -128,13 +139,17 @@ export function ProjectsView({
   const done = rows.filter((r) => r.health.delivered);
   const lateCount = active.filter((r) => r.health.level === "red").length;
 
-  // „De făcut”: următorul pas al fiecărui serviciu, pe proiectele în lucru.
+  // „De făcut”: toți pașii nebifați cu termen azi sau restanți, plus următorul pas al fiecărui serviciu.
   const todos: TodoItem[] = active
-    .flatMap((r) =>
-      r.health.byService
-        .filter((s) => s.next)
-        .map((s) => ({ task: s.next!, project: r.project, service: s.serviceId ? serviceById.get(s.serviceId) : undefined })),
-    )
+    .flatMap((r) => {
+      const due = (tasksByProject.get(r.project.id) ?? []).filter((t) => !t.done_at && t.due_date && t.due_date <= today);
+      const next = r.health.byService.map((s) => s.next).filter((t): t is ProjectTask => Boolean(t) && !due.includes(t!));
+      return [...due, ...next].map((task) => ({
+        task,
+        project: r.project,
+        service: task.service_id ? serviceById.get(task.service_id) : undefined,
+      }));
+    })
     .sort((a, b) => (a.task.due_date ?? "9999").localeCompare(b.task.due_date ?? "9999"));
 
   function tick(task: ProjectTask) {
@@ -190,7 +205,12 @@ export function ProjectsView({
       ) : (
         <>
           <section className="grid gap-3">
-            <SectionTitle icon={<ListTodoIcon />} title="De făcut" count={todos.length} hint="Următorul pas pe fiecare proiect. Bifează-l când e gata." />
+            <SectionTitle
+              icon={<ListTodoIcon />}
+              title="De făcut"
+              count={todos.length}
+              hint="Tot ce are termen azi sau e întârziat, plus următorul pas pe fiecare proiect."
+            />
             {todos.length ? (
               <div className="surface overflow-hidden">
                 <ul className="divide-y">
@@ -287,7 +307,12 @@ function TodoRow({ item, today, onTick }: { item: TodoItem; today: string; onTic
   const due = dueLabel(task.due_date, today);
   return (
     <li className="flex items-center gap-3 px-4 py-2.5">
-      <Checkbox className="size-5" checked={false} onCheckedChange={() => onTick(task)} aria-label={`Bifează ${task.title} la ${project.client_name}`} />
+      <Checkbox
+        className="size-5"
+        checked={false}
+        onCheckedChange={() => onTick(task)}
+        aria-label={`Bifează ${task.title} la ${project.client_name}`}
+      />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{task.title}</div>
         <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">

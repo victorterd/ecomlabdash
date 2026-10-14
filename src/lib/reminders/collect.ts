@@ -206,14 +206,9 @@ export async function collectReminders(
     });
   }
 
-  // Câte un pas pe fiecare serviciu al proiectului: primul nebifat cu termen (ca să nu se adune toată lista).
-  const nextTask = new Map<string, TaskRow>();
+  // Toți pașii nebifați cu termen azi, restanți sau în următoarele zile.
   for (const t of tasks?.data ?? []) {
     if (!t.project) continue;
-    const key = `${t.project.id}:${t.service_id ?? ""}`;
-    if (!nextTask.has(key)) nextTask.set(key, t);
-  }
-  for (const t of nextTask.values()) {
     items.push({
       id: `stage-${t.id}`,
       kind: "stage",

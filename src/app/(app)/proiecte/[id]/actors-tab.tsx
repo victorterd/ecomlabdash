@@ -88,7 +88,9 @@ export function ActorsTab({
       </div>
 
       {projectActors.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">Niciun actor alocat.</div>
+        <div className="rounded-xl border border-dashed bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
+          Niciun actor alocat.
+        </div>
       ) : (
         <div className="surface divide-y">
           {projectActors.map((pa) => {

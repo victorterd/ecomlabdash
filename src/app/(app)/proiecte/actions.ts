@@ -236,16 +236,19 @@ const taskPatch = z
     title: z.string().trim().min(1, "Scrie ce ai de făcut").max(300),
     due_date: date,
     done: z.boolean(),
+    /** Data la care s-a făcut (ex. bifezi azi ce ai terminat ieri). */
+    done_at: z.iso.date("Dată invalidă"),
   })
   .partial();
 
-/** Bifează / debifează un pas, îi schimbă numele sau termenul. */
+/** Bifează / debifează un pas, îi schimbă numele, termenul sau data la care s-a făcut. */
 export async function updateTask(id: string, patch: z.input<typeof taskPatch>): Promise<Result<TasksState>> {
   await requireProduction();
   const parsed = taskPatch.safeParse(patch);
   if (!parsed.success) return invalid(parsed.error.issues);
   const { done, ...rest } = parsed.data;
-  const update = { ...rest, ...(done === undefined ? {} : { done_at: done ? todayISO() : null }) };
+  const update = { ...rest, ...(done === undefined ? {} : { done_at: done ? (rest.done_at ?? todayISO()) : null }) };
+  if (update.done_at && update.done_at > todayISO()) return { ok: false, error: "Data la care s-a făcut nu poate fi în viitor." };
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("project_tasks")

@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { Result } from "@/lib/action-result";
-import { formatDate } from "@/lib/format";
 import { daysBetween, sortTasks } from "@/lib/projects/health";
 import type { ProjectTask, Service } from "@/lib/projects/types";
 import { cn } from "@/lib/utils";
@@ -60,7 +59,7 @@ export function TasksTab({
     run(() => updateTask(task.id, { done }), { ...state, tasks: tasksNext });
   }
 
-  function patch(task: ProjectTask, values: { title?: string; due_date?: string | null }) {
+  function patch(task: ProjectTask, values: { title?: string; due_date?: string | null; done_at?: string }) {
     const tasksNext = state.tasks.map((t) => (t.id === task.id ? { ...t, ...values } : t));
     run(() => updateTask(task.id, values), { ...state, tasks: tasksNext });
   }
@@ -177,7 +176,7 @@ function TaskGroup({
   tasks: ProjectTask[];
   today: string;
   onToggle: (task: ProjectTask, done: boolean) => void;
-  onPatch: (task: ProjectTask, values: { title?: string; due_date?: string | null }) => void;
+  onPatch: (task: ProjectTask, values: { title?: string; due_date?: string | null; done_at?: string }) => void;
   onMove: (task: ProjectTask, delta: number) => void;
   onDelete: (task: ProjectTask) => void;
   onAdd: (title: string) => void;
@@ -273,7 +272,7 @@ function TaskRow({
   last: boolean;
   today: string;
   onToggle: (task: ProjectTask, done: boolean) => void;
-  onPatch: (task: ProjectTask, values: { title?: string; due_date?: string | null }) => void;
+  onPatch: (task: ProjectTask, values: { title?: string; due_date?: string | null; done_at?: string }) => void;
   onMove: (task: ProjectTask, delta: number) => void;
   onDelete: (task: ProjectTask) => void;
 }) {
@@ -329,12 +328,13 @@ function TaskRow({
           <span
             className={cn(
               "text-xs whitespace-nowrap text-muted-foreground sm:w-28 sm:text-right",
+              done && task.due_date && task.done_at! > task.due_date && "text-warning",
               overdue && "font-medium text-destructive",
               dueToday && "font-medium text-warning",
             )}
           >
             {done
-              ? `bifat ${formatDate(task.done_at)}`
+              ? doneLabel(task)
               : overdue
                 ? `întârziat ${daysBetween(task.due_date!, today)} zile`
                 : dueToday
@@ -344,7 +344,13 @@ function TaskRow({
                     : ""}
           </span>
           {done ? (
-            <span className="hidden w-40 sm:block" />
+            // Data la care s-a făcut: o poți corecta dacă ai bifat mai târziu.
+            <DateField
+              value={task.done_at}
+              onChange={(v) => v && v <= today && onPatch(task, { done_at: v })}
+              className="h-8 w-40 shrink-0 text-muted-foreground"
+              aria-label={`Făcut la ${task.title}`}
+            />
           ) : (
             <DateField
               value={task.due_date}
@@ -377,4 +383,12 @@ function TaskRow({
       </DropdownMenu>
     </li>
   );
+}
+
+/** „făcut la timp” / „făcut cu N zile întârziere” / „făcut” (fără termen). */
+function doneLabel(task: ProjectTask): string {
+  if (!task.due_date || !task.done_at) return "făcut";
+  const late = daysBetween(task.due_date, task.done_at);
+  if (late <= 0) return "făcut la timp";
+  return late === 1 ? "făcut cu 1 zi întârziere" : `făcut cu ${late} zile întârziere`;
 }

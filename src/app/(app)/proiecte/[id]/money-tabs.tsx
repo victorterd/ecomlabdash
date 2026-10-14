@@ -83,11 +83,20 @@ function Summary({ items }: { items: { label: string; value: string; tone?: "goo
         <div key={i.label} className="surface px-4 py-3">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {i.tone ? (
-              <span className={cn("size-1.5 rounded-full", i.tone === "good" && "bg-success", i.tone === "warn" && "bg-warning", i.tone === "bad" && "bg-destructive")} />
+              <span
+                className={cn(
+                  "size-1.5 rounded-full",
+                  i.tone === "good" && "bg-success",
+                  i.tone === "warn" && "bg-warning",
+                  i.tone === "bad" && "bg-destructive",
+                )}
+              />
             ) : null}
             {i.label}
           </div>
-          <div className={cn("mt-1 truncate text-[17px] font-semibold tabular-nums", i.tone === "bad" && "text-destructive")}>{i.value}</div>
+          <div className={cn("mt-1 truncate text-[17px] font-semibold tabular-nums", i.tone === "bad" && "text-destructive")}>
+            {i.value}
+          </div>
         </div>
       ))}
     </div>
