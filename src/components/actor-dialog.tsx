@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Actor } from "@/lib/projects/types";
 import { cn } from "@/lib/utils";
 
-const UNIT_LABEL = { clip: "per clip", zi: "per zi", proiect: "per proiect" } as const;
+const UNIT_LABEL = { clip: "per clip", ora: "per oră", zi: "per zi", proiect: "per proiect" } as const;
 
 export function ActorDialog({
   open,

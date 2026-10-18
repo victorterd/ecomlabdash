@@ -101,7 +101,7 @@ export type Actor = {
   email: string | null;
   instagram: string | null;
   rate: string | null;
-  rate_unit: "clip" | "zi" | "proiect";
+  rate_unit: "clip" | "ora" | "zi" | "proiect";
   rating: number | null;
   notes: string | null;
   active: boolean;
@@ -130,5 +130,5 @@ export type Shoot = {
   actor_ids: string[];
 };
 
-export const RATE_UNIT_LABEL: Record<Actor["rate_unit"], string> = { clip: "/ clip", zi: "/ zi", proiect: "/ proiect" };
+export const RATE_UNIT_LABEL: Record<Actor["rate_unit"], string> = { clip: "/ clip", ora: "/ oră", zi: "/ zi", proiect: "/ proiect" };
 export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = { proiect: "Proiect", retainer: "Retainer" };

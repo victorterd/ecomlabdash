@@ -26,7 +26,7 @@ const actorSchema = z.object({
   email: text,
   instagram: text,
   rate: moneyInput.nullable(),
-  rate_unit: z.enum(["clip", "zi", "proiect"]),
+  rate_unit: z.enum(["clip", "ora", "zi", "proiect"]),
   rating: z.number().int().min(1).max(5).nullable(),
   notes: z
     .string()
