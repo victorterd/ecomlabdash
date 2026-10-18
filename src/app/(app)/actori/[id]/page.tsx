@@ -21,9 +21,7 @@ export default async function ActorPage({ params }: PageProps<"/actori/[id]">) {
   const [{ data: projects }, shoots] = await Promise.all([
     supabase
       .from("project_actors")
-      .select(
-        "id, role_notes, agreed_fee, project:projects(id, client_name, description, start_date, deadline, delivered_at, archived)",
-      )
+      .select("id, role_notes, agreed_fee, project:projects(id, client_name, description, start_date, deadline, delivered_at, archived)")
       .eq("actor_id", id)
       .order("created_at", { ascending: false })
       .returns<ActorProject[]>(),

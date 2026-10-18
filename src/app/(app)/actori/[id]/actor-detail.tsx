@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, AtSignIcon, MailIcon, PencilIcon, PhoneIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDeleteDialog } from "@/components/confirm-dialog";
 import { ActorDialog, RatingStars } from "@/components/actor-dialog";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatRON, formatTime } from "@/lib/format";
@@ -40,6 +41,7 @@ export function ActorDetail({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, startTransition] = useTransition();
   const projectName = new Map(projects.map((p) => [p.project.id, p.project.client_name]));
   const upcoming = shoots.filter((s) => s.shoot_date >= today);
@@ -95,21 +97,35 @@ export function ActorDetail({
             size="sm"
             className="text-destructive hover:bg-destructive/10"
             disabled={pending}
-            onClick={() =>
-              confirm(`Ștergi actorul ${actor.name}?`) &&
-              startTransition(async () => {
-                const result = await deleteActor(actor.id);
-                if (result.ok) {
-                  toast.success("Actor șters");
-                  router.push("/actori");
-                } else toast.error(result.error);
-              })
-            }
+            onClick={() => setConfirmDelete(true)}
           >
             <Trash2Icon /> Șterge
           </Button>
         </div>
       </div>
+
+      <ConfirmDeleteDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Ștergi actorul „${actor.name}”?`}
+        description={
+          projects.length
+            ? `Apare în ${projects.length} ${projects.length === 1 ? "proiect" : "proiecte"}: va dispărea din ele și din filmări. Costurile deja trecute în cashflow rămân.`
+            : "Actorul se șterge definitiv."
+        }
+        confirmLabel="Șterge actorul"
+        pending={pending}
+        onConfirm={() =>
+          startTransition(async () => {
+            const result = await deleteActor(actor.id);
+            if (result.ok) {
+              setConfirmDelete(false);
+              toast.success("Actor șters");
+              router.push("/actori");
+            } else toast.error(result.error);
+          })
+        }
+      />
 
       <section className="grid gap-2">
         <h2 className="text-base font-semibold">Proiecte ({projects.length})</h2>

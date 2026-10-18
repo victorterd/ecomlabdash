@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
+import { toast } from "sonner";
 import { ActorDialog, RatingStars } from "@/components/actor-dialog";
+import { ConfirmDeleteDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -12,12 +14,16 @@ import { formatRON } from "@/lib/format";
 import { fold, formatPhone } from "@/lib/leads/normalize";
 import { RATE_UNIT_LABEL, type Actor } from "@/lib/projects/types";
 import { cn } from "@/lib/utils";
+import { deleteActor } from "./actions";
 
 export function ActorsView({ actors, projectCounts }: { actors: Actor[]; projectCounts: Record<string, number> }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Actor | null>(null);
+  const [removing, setRemoving] = useState<Actor | null>(null);
+  const [deleting, startDelete] = useTransition();
 
   const visible = actors.filter(
     (a) =>
@@ -51,6 +57,7 @@ export function ActorsView({ actors, projectCounts }: { actors: Actor[]; project
                 <th className="text-right!">Tarif</th>
                 <th>Rating</th>
                 <th className="text-right!">Proiecte</th>
+                <th className="w-20" />
               </tr>
             </thead>
             <tbody>
@@ -84,11 +91,26 @@ export function ActorsView({ actors, projectCounts }: { actors: Actor[]; project
                     <RatingStars value={a.rating} />
                   </td>
                   <td className="text-right tabular-nums">{projectCounts[a.id] ?? 0}</td>
+                  <td className="px-1! text-right whitespace-nowrap">
+                    <Button variant="ghost" size="icon-sm" aria-label={`Editează ${a.name}`} title="Editează" onClick={() => setEditing(a)}>
+                      <PencilIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`Șterge ${a.name}`}
+                      title="Șterge"
+                      onClick={() => setRemoving(a)}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </td>
                 </tr>
               ))}
               {visible.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                     {actors.length ? "Niciun actor nu corespunde căutării." : "Nu ai încă actori. Adaugă primul actor UGC."}
                   </td>
                 </tr>
@@ -98,6 +120,37 @@ export function ActorsView({ actors, projectCounts }: { actors: Actor[]; project
         </div>
       </div>
       <ActorDialog open={open} onOpenChange={setOpen} actor={null} onSaved={(actor) => router.push(`/actori/${actor.id}`)} />
+      <ActorDialog
+        key={editing?.id ?? "none"}
+        open={editing !== null}
+        onOpenChange={(o) => !o && setEditing(null)}
+        actor={editing}
+        onSaved={() => {
+          setEditing(null);
+          router.refresh();
+        }}
+      />
+      <ConfirmDeleteDialog
+        open={removing !== null}
+        onOpenChange={(o) => !o && !deleting && setRemoving(null)}
+        title={`Ștergi actorul „${removing?.name}”?`}
+        description={
+          removing && projectCounts[removing.id]
+            ? `Apare în ${projectCounts[removing.id]} ${projectCounts[removing.id] === 1 ? "proiect" : "proiecte"}: va dispărea din ele și din filmări. Costurile deja trecute în cashflow rămân.`
+            : "Actorul se șterge definitiv."
+        }
+        confirmLabel="Șterge actorul"
+        pending={deleting}
+        onConfirm={() =>
+          startDelete(async () => {
+            const result = await deleteActor(removing!.id);
+            if (!result.ok) return void toast.error(result.error);
+            toast.success("Actor șters");
+            setRemoving(null);
+            router.refresh();
+          })
+        }
+      />
     </div>
   );
 }

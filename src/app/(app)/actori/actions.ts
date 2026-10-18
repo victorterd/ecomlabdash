@@ -49,13 +49,17 @@ export async function saveActor(id: string | null, values: Record<string, unknow
   return ok(data);
 }
 
+/**
+ * Șterge actorul: dispare din proiecte și din filmări.
+ * Costurile deja trecute în cashflow rămân (cu numele persoanei), doar fără legătura la actor.
+ */
 export async function deleteActor(id: string): Promise<Result> {
   await requireProduction();
   const supabase = await createClient();
-  const { count } = await supabase.from("project_actors").select("id", { count: "exact", head: true }).eq("actor_id", id);
-  if (count) return { ok: false, error: "Actorul are proiecte în istoric. Marchează-l ca inactiv în loc să-l ștergi." };
   const { error } = await supabase.from("actors").delete().eq("id", id);
   if (error) return fail(error);
   revalidatePath("/actori", "layout");
+  revalidatePath("/proiecte", "layout");
+  revalidatePath("/calendar");
   return ok(null);
 }
