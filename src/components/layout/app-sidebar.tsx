@@ -4,7 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronsLeftIcon, ChevronsRightIcon, LogOutIcon, PlusIcon, SearchIcon } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ROLE_LABELS } from "@/lib/labels";
 import type { Profile } from "@/lib/types";
@@ -15,8 +22,15 @@ import { groupsForRole, initials, isActive, SETTINGS_ITEM, SIDEBAR_COOKIE, type 
 import { quickActionsFor } from "./quick-actions";
 import { ThemeToggle } from "./theme-toggle";
 
-
-export function AppSidebar({ profile, badges, defaultCollapsed }: { profile: Profile; badges: Record<string, number>; defaultCollapsed: boolean }) {
+export function AppSidebar({
+  profile,
+  badges,
+  defaultCollapsed,
+}: {
+  profile: Profile;
+  badges: Record<string, number>;
+  defaultCollapsed: boolean;
+}) {
   const pathname = usePathname();
   const openSearch = useOpenCommandMenu();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -42,7 +56,9 @@ export function AppSidebar({ profile, badges, defaultCollapsed }: { profile: Pro
         )}
       >
         {active ? <span className="absolute top-2 bottom-2 left-0 w-[3px] rounded-r-full bg-brand" /> : null}
-        <item.icon className={cn("size-[18px] shrink-0", active ? "text-brand" : "text-sidebar-muted group-hover:text-sidebar-foreground")} />
+        <item.icon
+          className={cn("size-[18px] shrink-0", active ? "text-brand" : "text-sidebar-muted group-hover:text-sidebar-foreground")}
+        />
         {!collapsed ? <span className="flex-1 truncate">{item.label}</span> : null}
         {badge ? (
           <span
@@ -78,7 +94,12 @@ export function AppSidebar({ profile, badges, defaultCollapsed }: { profile: Pro
           {collapsed ? <LogoMark className="h-4" /> : <Logo onDark className="h-[19px]" />}
         </Link>
         {!collapsed ? (
-          <button type="button" onClick={toggle} className="rounded-md p-1.5 text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground" aria-label="Restrânge meniul">
+          <button
+            type="button"
+            onClick={toggle}
+            className="rounded-md p-1.5 text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            aria-label="Restrânge meniul"
+          >
             <ChevronsLeftIcon className="size-4" />
           </button>
         ) : null}
@@ -148,7 +169,12 @@ export function AppSidebar({ profile, badges, defaultCollapsed }: { profile: Pro
           )}
         />
         {collapsed ? (
-          <button type="button" onClick={toggle} className="flex h-9 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground" aria-label="Extinde meniul">
+          <button
+            type="button"
+            onClick={toggle}
+            className="flex h-9 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            aria-label="Extinde meniul"
+          >
             <ChevronsRightIcon className="size-4" />
           </button>
         ) : null}
@@ -165,7 +191,9 @@ export function AppSidebar({ profile, badges, defaultCollapsed }: { profile: Pro
             </span>
             {!collapsed ? (
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium text-sidebar-accent-foreground">{profile.full_name || profile.email}</span>
+                <span className="block truncate text-[13px] font-medium text-sidebar-accent-foreground">
+                  {profile.full_name || profile.email}
+                </span>
                 <span className="block truncate text-[11px] text-sidebar-muted">{ROLE_LABELS[profile.role]}</span>
               </span>
             ) : null}

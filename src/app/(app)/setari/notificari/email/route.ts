@@ -13,7 +13,7 @@ export async function GET() {
   const supabase = await createClient();
   const { data: prefs } = await supabase.from("notification_prefs").select("*").eq("user_id", profile.id).maybeSingle<NotificationPrefs>();
   const today = todayISO();
-  const buckets = await collectReminders(supabase, { today, horizonDays: 3, kinds: kindsForPrefs(profile.role, prefs) });
+  const buckets = await collectReminders(supabase, { today, horizonDays: 3, kinds: kindsForPrefs(profile.role, prefs), userId: profile.id });
   const { html } = buildDailyEmail(profile.full_name.split(" ")[0] ?? "", today, buckets);
   return new NextResponse(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }

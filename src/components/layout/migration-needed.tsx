@@ -16,8 +16,8 @@ export function MigrationNeeded({ title, file }: { title: string; file: string }
         </p>
         <ol className="list-decimal space-y-1 pl-5 text-sm">
           <li>
-            Deschide pe GitHub fișierul <code className="rounded bg-card px-1.5 py-0.5 text-xs">supabase/migrations/{file}</code> și
-            copiază tot conținutul.
+            Deschide pe GitHub fișierul <code className="rounded bg-card px-1.5 py-0.5 text-xs">supabase/migrations/{file}</code> și copiază
+            tot conținutul.
           </li>
           <li>
             În Supabase: <b>SQL Editor → New query</b>, lipește și apasă <b>Run</b>.

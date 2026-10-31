@@ -20,6 +20,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // Badge-uri: tot ce e restant sau de azi (Dashboard) și follow-up-urile (Lead-uri).
   const badges: Record<string, number> = { "/": countDue(reminders) };
   if (dueFollowUps) badges["/leaduri"] = dueFollowUps;
+  // To-do: ce ai de făcut azi + ce a rămas din zilele trecute.
+  const dueTodos = [...reminders.overdue, ...reminders.today].filter((r) => r.kind === "todo").length;
+  if (dueTodos) badges["/todo"] = dueTodos;
 
   return (
     <CommandMenuProvider role={profile.role}>

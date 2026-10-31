@@ -44,7 +44,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const rollDate = (date: string) => (date < today ? today : date);
   const inRange = (date: string) => date >= range.from && date <= range.to;
 
-  const [shoots, services, actors, projectOptions, tasks, followUps, projectActors] = await Promise.all([
+  const [shoots, services, actors, projectOptions, tasks, followUps, projectActors, todos] = await Promise.all([
     fetchShoots(range),
     fetchServices(),
     fetchActors(),
@@ -71,6 +71,14 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           .eq("status.is_closed", false)
           .returns<{ id: string; company_name: string; follow_up_date: string; follow_up_time: string | null }[]>(),
     supabase.from("project_actors").select("project_id, actor_id").returns<{ project_id: string; actor_id: string }[]>(),
+    // To-do-ul tău personal (fiecare își vede doar sarcinile lui).
+    supabase
+      .from("personal_tasks")
+      .select("id, title, due_date, due_time")
+      .is("done_at", null)
+      .gte("due_date", pendingFrom)
+      .lte("due_date", range.to)
+      .returns<{ id: string; title: string; due_date: string; due_time: string | null }[]>(),
   ]);
 
   const projectName = new Map(projectOptions.map((p) => [p.id, p.client_name]));
@@ -114,6 +122,17 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         detail: t.title,
         color: t.service_id ? serviceById.get(t.service_id)?.color : undefined,
         href: `/proiecte/${t.project.id}`,
+      })),
+    ...(todos.data ?? [])
+      .filter((t) => inRange(rollDate(t.due_date)))
+      .map((t): CalendarEvent => ({
+        id: `todo-${t.id}`,
+        kind: "todo",
+        date: rollDate(t.due_date),
+        carriedFrom: t.due_date < today ? t.due_date : undefined,
+        time: t.due_date < today ? null : t.due_time,
+        title: t.title,
+        href: "/todo",
       })),
     ...(followUps.data ?? [])
       .filter((l) => inRange(rollDate(l.follow_up_date)))

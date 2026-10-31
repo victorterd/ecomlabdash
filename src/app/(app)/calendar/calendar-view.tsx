@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 export type CalendarEvent = {
   id: string;
-  kind: "shoot" | "deadline" | "stage" | "followup";
+  kind: "shoot" | "deadline" | "stage" | "followup" | "todo";
   date: string;
   time?: string | null;
   title: string;
@@ -30,14 +30,27 @@ export type CalendarEvent = {
 
 type Kind = CalendarEvent["kind"];
 
-const KIND_LABEL: Record<Kind, string> = { shoot: "Filmări", deadline: "Deadline-uri", stage: "Pași proiect", followup: "Follow-up-uri" };
+const KIND_LABEL: Record<Kind, string> = {
+  shoot: "Filmări",
+  deadline: "Deadline-uri",
+  stage: "Pași proiect",
+  followup: "Follow-up-uri",
+  todo: "To-do",
+};
 const KIND_STYLE: Record<Kind, string> = {
   shoot: "bg-brand/15 text-foreground border-l-brand",
   deadline: "bg-danger-soft text-destructive border-l-destructive",
   stage: "bg-warning-soft text-foreground border-l-warning",
   followup: "bg-blue-500/10 text-foreground border-l-blue-500",
+  todo: "bg-violet-500/10 text-foreground border-l-violet-500",
 };
-const DOT: Record<Kind, string> = { shoot: "bg-brand", deadline: "bg-destructive", stage: "bg-warning", followup: "bg-blue-500" };
+const DOT: Record<Kind, string> = {
+  shoot: "bg-brand",
+  deadline: "bg-destructive",
+  stage: "bg-warning",
+  followup: "bg-blue-500",
+  todo: "bg-violet-500",
+};
 const WEEKDAYS = ["Lu", "Ma", "Mi", "Jo", "Vi", "Sâ", "Du"];
 const STORAGE_KEY = "calendar-filters";
 
@@ -69,8 +82,8 @@ export function CalendarView({
   projectActorIds: Record<string, string[]>;
 }) {
   const router = useRouter();
-  const kinds: Kind[] = showFollowUps ? ["shoot", "deadline", "stage", "followup"] : ["shoot", "deadline", "stage"];
-  const [enabled, setEnabled] = useState<Record<Kind, boolean>>({ shoot: true, deadline: true, stage: true, followup: true });
+  const kinds: Kind[] = showFollowUps ? ["shoot", "deadline", "stage", "followup", "todo"] : ["shoot", "deadline", "stage", "todo"];
+  const [enabled, setEnabled] = useState<Record<Kind, boolean>>({ shoot: true, deadline: true, stage: true, followup: true, todo: true });
   const searchParams = useSearchParams();
   // ?nou=1 (din butonul „+” / ⌘K) deschide direct formularul de filmare.
   const [dialog, setDialog] = useState<{ open: boolean; shoot: Shoot | null; date: string | null }>(() => ({
@@ -107,7 +120,7 @@ export function CalendarView({
       if (!enabled[e.kind]) continue;
       map.set(e.date, [...(map.get(e.date) ?? []), e]);
     }
-    const order: Record<Kind, number> = { deadline: 0, shoot: 1, stage: 2, followup: 3 };
+    const order: Record<Kind, number> = { deadline: 0, shoot: 1, stage: 2, todo: 3, followup: 4 };
     // Restanțele mutate pe azi vin primele.
     for (const list of map.values())
       list.sort(

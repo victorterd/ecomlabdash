@@ -59,7 +59,7 @@ export async function sendTestEmail(): Promise<Result<string>> {
   const supabase = await createClient();
   const { data: prefs } = await supabase.from("notification_prefs").select("*").eq("user_id", profile.id).maybeSingle<NotificationPrefs>();
   const today = todayISO();
-  const buckets = await collectReminders(supabase, { today, horizonDays: 3, kinds: kindsForPrefs(profile.role, prefs) });
+  const buckets = await collectReminders(supabase, { today, horizonDays: 3, kinds: kindsForPrefs(profile.role, prefs), userId: profile.id });
   const to = prefs?.email_to || profile.email;
   const email = buildDailyEmail(profile.full_name.split(" ")[0] ?? "", today, buckets);
   const result = await sendEmail({ to, ...email });

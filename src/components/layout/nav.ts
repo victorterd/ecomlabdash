@@ -2,6 +2,7 @@ import {
   CalendarDaysIcon,
   ClapperboardIcon,
   LayoutDashboardIcon,
+  ListTodoIcon,
   PhoneCallIcon,
   SettingsIcon,
   UsersRoundIcon,
@@ -27,7 +28,13 @@ export type NavGroup = { label: string | null; items: NavItem[] };
 const ALL: UserRole[] = ["admin", "setter", "productie"];
 
 export const NAV_GROUPS: NavGroup[] = [
-  { label: null, items: [{ href: "/", label: "Dashboard", short: "Acasă", icon: LayoutDashboardIcon, roles: ALL }] },
+  {
+    label: null,
+    items: [
+      { href: "/", label: "Dashboard", short: "Acasă", icon: LayoutDashboardIcon, roles: ALL },
+      { href: "/todo", label: "To-do", icon: ListTodoIcon, roles: ALL },
+    ],
+  },
   { label: "Vânzări", items: [{ href: "/leaduri", label: "Lead-uri", icon: PhoneCallIcon, roles: ["admin", "setter"] }] },
   {
     label: "Producție",

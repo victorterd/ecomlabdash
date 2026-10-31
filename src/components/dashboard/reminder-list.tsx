@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { FollowUpSettings } from "@/app/(app)/leaduri/follow-up-dialog";
 import { FollowUpCheck } from "@/app/(app)/leaduri/follow-up-check";
+import { TodoCheck } from "@/app/(app)/todo/todo-check";
 import type { LeadStatus } from "@/lib/types";
 import {
   ArrowDownLeftIcon,
@@ -8,6 +9,7 @@ import {
   CalendarClockIcon,
   ClapperboardIcon,
   FlagIcon,
+  ListTodoIcon,
   PhoneCallIcon,
   PhoneIcon,
   type LucideIcon,
@@ -25,6 +27,7 @@ const ICON: Record<ReminderKind, LucideIcon> = {
   shoot: ClapperboardIcon,
   stage: CalendarClockIcon,
   deadline: FlagIcon,
+  todo: ListTodoIcon,
 };
 
 const ICON_TONE: Record<ReminderKind, string> = {
@@ -34,6 +37,7 @@ const ICON_TONE: Record<ReminderKind, string> = {
   shoot: "bg-brand/15 text-brand-strong",
   stage: "bg-warning-soft text-warning",
   deadline: "bg-danger-soft text-destructive",
+  todo: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
 };
 
 export function whenLabel(date: string, today: string): string {
@@ -90,6 +94,7 @@ export function ReminderList({
                 {whenLabel(item.date, today)}
               </div>
             </div>
+            {item.kind === "todo" ? <TodoCheck id={item.id.replace(/^todo-/, "")} title={item.title} /> : null}
             {followUp && item.kind === "followup" ? (
               <FollowUpCheck
                 leadId={item.id.replace(/^followup-/, "")}

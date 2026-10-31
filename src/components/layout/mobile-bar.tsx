@@ -24,12 +24,20 @@ export function MobileTopBar({ profile }: { profile: Profile }) {
       <Link href="/" className="mr-auto" aria-label="Acasă">
         <Logo className="h-[17px]" />
       </Link>
-      <button type="button" onClick={openSearch} className="flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" aria-label="Caută">
+      <button
+        type="button"
+        onClick={openSearch}
+        className="flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+        aria-label="Caută"
+      >
         <SearchIcon className="size-[18px]" />
       </button>
       {actions.length ? (
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex size-9 items-center justify-center rounded-lg bg-brand text-brand-foreground shadow-sm outline-none" aria-label="Adaugă rapid">
+          <DropdownMenuTrigger
+            className="flex size-9 items-center justify-center rounded-lg bg-brand text-brand-foreground shadow-sm outline-none"
+            aria-label="Adaugă rapid"
+          >
             <PlusIcon className="size-[18px]" strokeWidth={2.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
@@ -57,7 +65,14 @@ export function MobileTabBar({ profile, badges }: { profile: Profile; badges: Re
   const rest = items.slice(4);
   const moreActive = rest.some((i) => isActive(pathname, i.href));
 
-  const tab = (href: string, label: string, Icon: React.ComponentType<{ className?: string }>, active: boolean, badge?: number, onClick?: () => void) => {
+  const tab = (
+    href: string,
+    label: string,
+    Icon: React.ComponentType<{ className?: string }>,
+    active: boolean,
+    badge?: number,
+    onClick?: () => void,
+  ) => {
     const inner = (
       <>
         <span className="relative">
@@ -109,14 +124,24 @@ export function MobileTabBar({ profile, badges }: { profile: Profile; badges: Re
                 key={i.href}
                 href={i.href}
                 onClick={() => setMoreOpen(false)}
-                className={cn("flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium hover:bg-muted", isActive(pathname, i.href) && "bg-muted")}
+                className={cn(
+                  "flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium hover:bg-muted",
+                  isActive(pathname, i.href) && "bg-muted",
+                )}
               >
                 <i.icon className="size-5 text-muted-foreground" /> {i.label}
               </Link>
             ))}
-            <ThemeToggle savedTheme={profile.theme} withLabel className="h-12 rounded-xl px-3 text-[15px] font-medium hover:bg-muted [&_svg]:size-5 [&_svg]:text-muted-foreground" />
+            <ThemeToggle
+              savedTheme={profile.theme}
+              withLabel
+              className="h-12 rounded-xl px-3 text-[15px] font-medium hover:bg-muted [&_svg]:size-5 [&_svg]:text-muted-foreground"
+            />
             <form action="/auth/signout" method="post">
-              <button type="submit" className="flex h-12 w-full items-center gap-3 rounded-xl px-3 text-[15px] font-medium text-destructive hover:bg-muted">
+              <button
+                type="submit"
+                className="flex h-12 w-full items-center gap-3 rounded-xl px-3 text-[15px] font-medium text-destructive hover:bg-muted"
+              >
                 <LogOutIcon className="size-5" /> Deconectare
               </button>
             </form>

@@ -1,10 +1,11 @@
-import { CalendarPlusIcon, ClapperboardIcon, PhoneCallIcon, ReceiptIcon, type LucideIcon } from "lucide-react";
+import { CalendarPlusIcon, ClapperboardIcon, ListTodoIcon, PhoneCallIcon, ReceiptIcon, type LucideIcon } from "lucide-react";
 import type { UserRole } from "@/lib/types";
 
 export type QuickAction = { label: string; href: string; icon: LucideIcon; roles: UserRole[]; hint?: string };
 
 /** Acțiuni rapide („+” și ⌘K). Paginile țintă deschid formularul din parametrul `nou`. */
 export const QUICK_ACTIONS: QuickAction[] = [
+  { label: "Sarcină în to-do", href: "/todo", icon: ListTodoIcon, roles: ["admin", "setter", "productie"] },
   { label: "Lead nou", href: "/leaduri?nou=1", icon: PhoneCallIcon, roles: ["admin", "setter"] },
   { label: "Proiect nou", href: "/proiecte/nou", icon: ClapperboardIcon, roles: ["admin", "productie"] },
   { label: "Cheltuială", href: "/financiar/tranzactii?nou=cheltuiala", icon: ReceiptIcon, roles: ["admin"] },

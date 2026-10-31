@@ -2,7 +2,7 @@ import { addDays, format, parseISO } from "date-fns";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NotificationPrefs, UserRole } from "@/lib/types";
 
-export type ReminderKind = "followup" | "installment" | "payment" | "shoot" | "stage" | "deadline";
+export type ReminderKind = "followup" | "installment" | "payment" | "shoot" | "stage" | "deadline" | "todo";
 
 export type Reminder = {
   id: string;
@@ -31,13 +31,14 @@ export const KIND_LABEL: Record<ReminderKind, string> = {
   shoot: "Filmare",
   stage: "Pas proiect",
   deadline: "Deadline livrare",
+  todo: "To-do",
 };
 
 /** Ce tipuri de remindere vede fiecare rol. */
 const ROLE_KINDS: Record<UserRole, ReminderKind[]> = {
-  admin: ["followup", "installment", "payment", "shoot", "stage", "deadline"],
-  setter: ["followup"],
-  productie: ["shoot", "stage", "deadline"],
+  admin: ["followup", "installment", "payment", "shoot", "stage", "deadline", "todo"],
+  setter: ["followup", "todo"],
+  productie: ["shoot", "stage", "deadline", "todo"],
 };
 
 /** Ce tipuri sunt pornite din preferințele de notificare. */
@@ -56,6 +57,8 @@ export function kindsForPrefs(role: UserRole, prefs: Partial<NotificationPrefs> 
       case "stage":
       case "deadline":
         return on("notify_stage_deadlines");
+      case "todo":
+        return true;
     }
   });
 }
@@ -87,6 +90,7 @@ type TaskRow = {
   service_id: string | null;
   project: { id: string; client_name: string } | null;
 };
+type TodoRow = { id: string; title: string; notes: string | null; due_date: string; due_time: string | null };
 type ProjectRow = { id: string; client_name: string; deadline: string };
 
 const TX_LABEL: Record<string, string> = {
@@ -103,13 +107,24 @@ const TX_LABEL: Record<string, string> = {
  */
 export async function collectReminders(
   supabase: SupabaseClient,
-  { today, horizonDays = 3, kinds }: { today: string; horizonDays?: number; kinds: ReminderKind[] },
+  {
+    today,
+    horizonDays = 3,
+    kinds,
+    userId,
+  }: {
+    today: string;
+    horizonDays?: number;
+    kinds: ReminderKind[];
+    /** Al cui to-do personal (obligatoriu cu clientul de service, care nu are RLS pe utilizator). */
+    userId?: string;
+  },
 ): Promise<ReminderBuckets> {
   const horizon = format(addDays(parseISO(today), horizonDays), "yyyy-MM-dd");
   const want = new Set(kinds);
   const items: Reminder[] = [];
 
-  const [leads, txs, shoots, tasks, projects] = await Promise.all([
+  const [leads, txs, shoots, tasks, projects, todos] = await Promise.all([
     want.has("followup")
       ? supabase
           .from("leads")
@@ -160,6 +175,20 @@ export async function collectReminders(
           .is("delivered_at", null)
           .lte("deadline", horizon)
           .returns<ProjectRow[]>()
+      : null,
+    want.has("todo")
+      ? (() => {
+          let q = supabase
+            .from("personal_tasks")
+            .select("id, title, notes, due_date, due_time")
+            .is("done_at", null)
+            .lte("due_date", horizon)
+            .order("due_date")
+            .order("due_time", { nullsFirst: true })
+            .limit(300);
+          if (userId) q = q.eq("user_id", userId);
+          return q.returns<TodoRow[]>();
+        })()
       : null,
   ]);
 
@@ -230,7 +259,19 @@ export async function collectReminders(
     });
   }
 
-  const order: Record<ReminderKind, number> = { shoot: 0, deadline: 1, stage: 2, followup: 3, installment: 4, payment: 5 };
+  for (const t of todos?.data ?? []) {
+    items.push({
+      id: `todo-${t.id}`,
+      kind: "todo",
+      date: t.due_date,
+      time: t.due_time,
+      title: t.title,
+      detail: t.notes ?? undefined,
+      href: "/todo",
+    });
+  }
+
+  const order: Record<ReminderKind, number> = { shoot: 0, deadline: 1, stage: 2, todo: 3, followup: 4, installment: 5, payment: 6 };
   items.sort((a, b) => a.date.localeCompare(b.date) || order[a.kind] - order[b.kind] || (a.time ?? "").localeCompare(b.time ?? ""));
 
   return {

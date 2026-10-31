@@ -12,5 +12,10 @@ export const getMyReminders = cache(async (): Promise<ReminderBuckets> => {
   const profile = await getCurrentProfile();
   if (!profile) return EMPTY;
   const supabase = await createClient();
-  return collectReminders(supabase, { today: todayISO(), horizonDays: 3, kinds: kindsForPrefs(profile.role, null) }).catch(() => EMPTY);
+  return collectReminders(supabase, {
+    today: todayISO(),
+    horizonDays: 3,
+    kinds: kindsForPrefs(profile.role, null),
+    userId: profile.id,
+  }).catch(() => EMPTY);
 });

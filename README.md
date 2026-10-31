@@ -47,6 +47,7 @@ Când apare o migrație nouă în `supabase/migrations/`, rulează doar fișieru
 | `20261015000007_forecast_pnl.sql` | forecast pe model P&L (proiecte estimate + costuri fixe) |
 | `20261016000008_lead_activities.sql` | jurnal de follow-up-uri pe lead |
 | `20261018000009_actor_hourly_rate.sql` | tarif pe oră la actori |
+| `20261031000010_personal_tasks.sql` | to-do personal |
 
 ### Remindere și notificări (Etapa 5)
 

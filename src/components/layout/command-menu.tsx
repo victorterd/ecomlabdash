@@ -18,7 +18,8 @@ const HIT_GROUP = { project: "Proiecte", lead: "Lead-uri", actor: "Actori" } as 
 
 const itemClass =
   "flex cursor-default items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none select-none data-[selected=true]:bg-muted [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground";
-const groupClass = "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase";
+const groupClass =
+  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase";
 
 /** Căutare globală ⌘K / Ctrl+K: pagini, acțiuni rapide, lead-uri, proiecte, actori. */
 export function CommandMenuProvider({ role, children }: { role: UserRole; children: React.ReactNode }) {
@@ -76,7 +77,11 @@ export function CommandMenuProvider({ role, children }: { role: UserRole; childr
             <DialogPrimitive.Title className="sr-only">Caută</DialogPrimitive.Title>
             <Command shouldFilter={false} loop>
               <div className="flex items-center gap-3 border-b px-4">
-                {searching ? <Loader2Icon className="size-4 animate-spin text-muted-foreground" /> : <SearchIcon className="size-4 text-muted-foreground" />}
+                {searching ? (
+                  <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <SearchIcon className="size-4 text-muted-foreground" />
+                )}
                 <Command.Input
                   value={query}
                   onValueChange={setQuery}

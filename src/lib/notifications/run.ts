@@ -65,7 +65,7 @@ export async function runNotificationTick(supabase: SupabaseClient, now = new Da
     const morning = time >= emailTime;
 
     let buckets: ReminderBuckets | null = null;
-    const getBuckets = async () => (buckets ??= await collectReminders(supabase, { today, horizonDays: 3, kinds }));
+    const getBuckets = async () => (buckets ??= await collectReminders(supabase, { today, horizonDays: 3, kinds, userId: user.id }));
 
     if (morning && wantsEmail && !logged.has("daily_email:")) {
       const b = await getBuckets();
