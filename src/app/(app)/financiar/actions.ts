@@ -249,6 +249,29 @@ export async function addForecastRow(
   return forecastDone(data);
 }
 
+/** Dublează un rând: copia apare imediat sub original, cu valorile primite (cele din ecran). */
+export async function duplicateForecastRow(kind: ForecastKind, id: string, values: Record<string, unknown>): Promise<Result<ForecastRow>> {
+  await requireAdmin();
+  const def = FORECAST_TABLES[kind];
+  const parsed = def.schema.safeParse(values);
+  if (!parsed.success) return invalid(parsed.error.issues);
+  const supabase = await createClient();
+  const { data: source, error: readError } = await supabase
+    .from(def.table)
+    .select("month, sort_order")
+    .eq("id", id)
+    .single<{ month: string; sort_order: number }>();
+  if (readError) return fail(readError);
+  // Aceeași poziție ca originalul; la egalitate ordinea e după data creării, deci copia vine imediat după.
+  const { data, error } = await supabase
+    .from(def.table)
+    .insert({ month: source.month, sort_order: source.sort_order, ...parsed.data })
+    .select(def.columns)
+    .single<ForecastRow>();
+  if (error) return fail(error);
+  return forecastDone(data);
+}
+
 export async function updateForecastRow(kind: ForecastKind, id: string, values: Record<string, unknown>): Promise<Result<ForecastRow>> {
   await requireAdmin();
   const def = FORECAST_TABLES[kind];
@@ -279,10 +302,17 @@ export async function copyForecastMonth(from: string, to: string): Promise<Resul
     if (count) return { ok: false, error: "Luna are deja estimări. Șterge-le întâi dacă vrei să copiezi." };
   }
   for (const def of Object.values(FORECAST_TABLES)) {
-    const { data } = await supabase.from(def.table).select(def.columns).eq("month", from).returns<ForecastRow[]>();
+    const { data } = await supabase
+      .from(def.table)
+      .select(def.columns)
+      .eq("month", from)
+      .order("sort_order")
+      .order("created_at")
+      .returns<ForecastRow[]>();
     if (!data?.length) continue;
-    const copies = data.map((row) => {
-      const copy: Record<string, unknown> = { ...row, month: to };
+    // Renumerotăm, ca rândurile dublate să-și păstreze ordinea și în luna nouă.
+    const copies = data.map((row, i) => {
+      const copy: Record<string, unknown> = { ...row, month: to, sort_order: (i + 1) * 10 };
       delete copy.id;
       return copy;
     });

@@ -6,13 +6,21 @@ import { useRouter } from "next/navigation";
 import Decimal from "decimal.js";
 import { format, parseISO } from "date-fns";
 import { ro } from "date-fns/locale";
-import { ChevronLeftIcon, ChevronRightIcon, CopyIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, CopyIcon, CopyPlusIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ForecastFixedCost, ForecastProject } from "@/lib/finance/queries";
 import { formatAmount, formatNumber, formatPercent, formatRON, parseMoneyInput, toDecimal } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { addForecastRow, copyForecastMonth, deleteForecastRow, type ForecastKind, type ForecastRow, updateForecastRow } from "../actions";
+import {
+  addForecastRow,
+  copyForecastMonth,
+  deleteForecastRow,
+  duplicateForecastRow,
+  type ForecastKind,
+  type ForecastRow,
+  updateForecastRow,
+} from "../actions";
 import { ForecastImport } from "./forecast-import";
 
 export type ActualMonth = {
@@ -146,6 +154,23 @@ export function ForecastView({
         toast.error(result.error);
         setRows(kind, (rows) => rows.map((r) => (r.id === row.id ? row : r)));
       }
+    });
+  }
+
+  function duplicate(kind: ForecastKind, row: ForecastRow) {
+    const fields = kind === "project" ? ["name", "revenue", ...COST_FIELDS] : ["name", "amount"];
+    const values = Object.fromEntries(fields.map((f) => [f, String(row[f] ?? (f === "name" ? "" : "0"))]));
+    startTransition(async () => {
+      const result = await duplicateForecastRow(kind, row.id, values);
+      if (!result.ok) return void toast.error(result.error);
+      setRows(kind, (rows) => {
+        // După original și după copiile lui anterioare (aceeași lună și poziție).
+        const same = (r: ForecastRow) => r.month === row.month && r.sort_order === row.sort_order;
+        let at = rows.findIndex((r) => r.id === row.id);
+        while (at + 1 < rows.length && same(rows[at + 1]!)) at++;
+        return [...rows.slice(0, at + 1), result.data, ...rows.slice(at + 1)];
+      });
+      toast.success("Rând dublat");
     });
   }
 
@@ -337,7 +362,7 @@ export function ForecastView({
         <div className="surface overflow-hidden">
           <div className="border-b px-4 py-3 text-sm font-semibold">Proiecte</div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1270px] text-sm">
+            <table className="w-full min-w-[1310px] text-sm">
               <colgroup>
                 <col />
                 <col className="w-32" />
@@ -349,7 +374,7 @@ export function ForecastView({
                 <col className="w-32" />
                 <col className="w-32" />
                 <col className="w-20" />
-                <col className="w-10" />
+                <col className="w-[4.5rem]" />
               </colgroup>
               <thead className="table-head">
                 <tr className={th}>
@@ -383,15 +408,28 @@ export function ForecastView({
                       </td>
                       <td className="px-3! text-right text-muted-foreground tabular-nums">{mg ? formatPercent(mg.toFixed(0)) : ""}</td>
                       <td>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
-                          aria-label={`Șterge ${p.name || "rândul"}`}
-                          onClick={() => remove("project", row)}
-                        >
-                          <Trash2Icon />
-                        </Button>
+                        <div className="flex">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
+                            aria-label={`Dublează ${p.name || "rândul"}`}
+                            title="Dublează rândul"
+                            onClick={() => duplicate("project", row)}
+                            disabled={pending}
+                          >
+                            <CopyPlusIcon />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
+                            aria-label={`Șterge ${p.name || "rândul"}`}
+                            onClick={() => remove("project", row)}
+                          >
+                            <Trash2Icon />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -442,6 +480,17 @@ export function ForecastView({
                   <li key={c.id} className="group flex items-center gap-1 px-1 py-1">
                     <div className="min-w-0 flex-1">{cellInput("fixed", row, "name", { text: true, label: "Denumire cost fix" })}</div>
                     <div className="w-36">{cellInput("fixed", row, "amount", { label: `Sumă ${c.name}` })}</div>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
+                      aria-label={`Dublează ${c.name || "rândul"}`}
+                      title="Dublează rândul"
+                      onClick={() => duplicate("fixed", row)}
+                      disabled={pending}
+                    >
+                      <CopyPlusIcon />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
