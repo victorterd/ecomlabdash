@@ -1,0 +1,218 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Ecomlab — sistem vizual.
+ * Negru (#111) pentru acțiuni principale, verde (#1CDB10) ca accent de brand,
+ * neutre calde pentru suprafețe. Toate culorile aplicației vin din tokenii de mai jos.
+ */
+:root {
+  --radius: 0.75rem;
+
+  --background: #f6f6f3; /* pânza aplicației */
+  --foreground: #121412;
+  --card: #ffffff;
+  --card-foreground: #121412;
+  --popover: #ffffff;
+  --popover-foreground: #121412;
+
+  --primary: #121412;
+  --primary-foreground: #ffffff;
+  --brand: #1cdb10;
+  --brand-strong: #109a07;
+  --brand-foreground: #062904;
+  --brand-soft: #e9fbe6;
+
+  --secondary: #efefeb;
+  --secondary-foreground: #121412;
+  --muted: #f0f0ec;
+  --muted-foreground: #6b6f69;
+  --accent: #ecfbe9;
+  --accent-foreground: #0d4209;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --warning: #c27803;
+  --warning-soft: #fdf3dc;
+  --danger-soft: #fdeceb;
+  --success: #15803d;
+  --info: #2563eb;
+  --info-soft: #e8effd;
+
+  --border: #e4e4df;
+  --border-strong: #d4d4ce;
+  --input: #dcdcd6;
+  --ring: #1cdb10;
+
+  --sidebar: #0e100e;
+  --sidebar-foreground: #c9cdc8;
+  --sidebar-muted: #7d837c;
+  --sidebar-accent: #1b1f1b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f231f;
+
+  --shadow-color: 30 20% 10%;
+}
+
+.dark {
+  --background: #0a0b0a;
+  --foreground: #eef0ed;
+  --card: #121412;
+  --card-foreground: #eef0ed;
+  --popover: #161916;
+  --popover-foreground: #eef0ed;
+
+  --primary: #eef0ed;
+  --primary-foreground: #0a0b0a;
+  --brand: #1cdb10;
+  --brand-strong: #3fe434;
+  --brand-foreground: #052003;
+  --brand-soft: #112a0e;
+
+  --secondary: #1b1e1b;
+  --secondary-foreground: #eef0ed;
+  --muted: #181a18;
+  --muted-foreground: #949a93;
+  --accent: #14260f;
+  --accent-foreground: #b6f3b0;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --warning: #f2b632;
+  --warning-soft: #2a220e;
+  --danger-soft: #2c1313;
+  --success: #3ccb6c;
+  --info: #6aa1ff;
+  --info-soft: #121c30;
+
+  --border: #232723;
+  --border-strong: #2f342f;
+  --input: #2c312c;
+  --ring: #1cdb10;
+
+  --sidebar: #070807;
+  --sidebar-foreground: #b9beb8;
+  --sidebar-muted: #6c726b;
+  --sidebar-accent: #161916;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #181b18;
+
+  --shadow-color: 0 0% 0%;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit), var(--font-inter), ui-sans-serif, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.05);
+  --shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 1px 3px hsl(var(--shadow-color) / 0.05);
+  --shadow-md: 0 4px 12px -2px hsl(var(--shadow-color) / 0.08), 0 2px 4px -2px hsl(var(--shadow-color) / 0.05);
+  --shadow-lg: 0 16px 40px -12px hsl(var(--shadow-color) / 0.22), 0 4px 10px -4px hsl(var(--shadow-color) / 0.08);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --animate-fade-up: fade-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-gutter: stable;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.015em;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 35%, transparent);
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  /* Scrollbar discret */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}
+
+@layer components {
+  /* Suprafață de tip card, folosită și de tabele și panouri. */
+  .surface {
+    @apply rounded-xl border bg-card shadow-sm;
+  }
+  /* Antet de tabel unitar. */
+  .table-head {
+    @apply bg-muted/60 text-xs font-medium text-muted-foreground;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
