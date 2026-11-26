@@ -26,6 +26,8 @@ export type ForecastProject = {
   actor: string;
   cameraman: string;
   editor: string;
+  scripter: string;
+  sales_agent: string;
   sort_order: number;
 };
 
@@ -101,16 +103,14 @@ export async function fetchRecurring(): Promise<RecurringExpense[]> {
 }
 
 /** Forecast-ul unui an (proiecte estimate + costuri fixe). `null` dacă migrația nu e rulată. */
-export async function fetchForecastYear(
-  year: number,
-): Promise<{ projects: ForecastProject[]; fixedCosts: ForecastFixedCost[] } | null> {
+export async function fetchForecastYear(year: number): Promise<{ projects: ForecastProject[]; fixedCosts: ForecastFixedCost[] } | null> {
   const supabase = await createClient();
   const from = `${year}-01-01`;
   const to = `${year}-12-01`;
   const [projects, fixedCosts] = await Promise.all([
     supabase
       .from("forecast_projects")
-      .select("id, month, name, revenue, actor, cameraman, editor, sort_order")
+      .select("id, month, name, revenue, actor, cameraman, editor, scripter, sales_agent, sort_order")
       .gte("month", from)
       .lte("month", to)
       .order("month")

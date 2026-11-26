@@ -395,8 +395,30 @@ async function seedFinance(today: Date) {
   for (let i = 0; i < 6; i++) {
     const month = format(new Date(today.getFullYear(), today.getMonth() + i, 1), "yyyy-MM-dd");
     await supabase.from("forecast_projects").insert([
-      { month, name: "Client mediu", revenue: 3200, actor: 400, cameraman: 300, editor: 600, sort_order: 10, is_seed: true },
-      { month, name: "Client mediu", revenue: 3200, actor: 400, cameraman: 300, editor: 600, sort_order: 20, is_seed: true },
+      {
+        month,
+        name: "Client mediu",
+        revenue: 3200,
+        actor: 400,
+        cameraman: 300,
+        editor: 600,
+        scripter: 150,
+        sales_agent: 320,
+        sort_order: 10,
+        is_seed: true,
+      },
+      {
+        month,
+        name: "Client mediu",
+        revenue: 3200,
+        actor: 400,
+        cameraman: 300,
+        editor: 600,
+        scripter: 150,
+        sales_agent: 320,
+        sort_order: 20,
+        is_seed: true,
+      },
       ...Array.from({ length: 2 + (i % 3) }, (_, j) => ({
         month,
         name: "Client mic",
@@ -404,6 +426,8 @@ async function seedFinance(today: Date) {
         actor: 150,
         cameraman: 150,
         editor: 200,
+        scripter: 50,
+        sales_agent: 100,
         sort_order: 30 + j * 10,
         is_seed: true,
       })),

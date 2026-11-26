@@ -27,7 +27,14 @@ export type ActualMonth = {
 
 type MonthPnl = { revenue: Decimal; direct: Decimal; gross: Decimal; fixed: Decimal; net: Decimal };
 
-const COST_FIELDS = ["actor", "cameraman", "editor"] as const;
+const COST_FIELDS = ["actor", "cameraman", "editor", "scripter", "sales_agent"] as const;
+const COST_LABEL: Record<(typeof COST_FIELDS)[number], string> = {
+  actor: "Actor",
+  cameraman: "Cameraman",
+  editor: "Editor",
+  scripter: "Scripter",
+  sales_agent: "Agent vânzări",
+};
 const zero = () => new Decimal(0);
 
 const projectCosts = (p: ForecastProject) => COST_FIELDS.reduce((acc, f) => acc.plus(toDecimal(p[f])), zero());
@@ -330,10 +337,12 @@ export function ForecastView({
         <div className="surface overflow-hidden">
           <div className="border-b px-4 py-3 text-sm font-semibold">Proiecte</div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1040px] text-sm">
+            <table className="w-full min-w-[1270px] text-sm">
               <colgroup>
                 <col />
                 <col className="w-32" />
+                <col className="w-28" />
+                <col className="w-28" />
                 <col className="w-28" />
                 <col className="w-28" />
                 <col className="w-28" />
@@ -346,9 +355,9 @@ export function ForecastView({
                 <tr className={th}>
                   <th className="text-left!">Nume proiect</th>
                   <th>Venituri</th>
-                  <th>Actor</th>
-                  <th>Cameraman</th>
-                  <th>Editor</th>
+                  {COST_FIELDS.map((f) => (
+                    <th key={f}>{COST_LABEL[f]}</th>
+                  ))}
                   <th>Total costuri</th>
                   <th>Profit</th>
                   <th>Marja</th>
@@ -366,7 +375,7 @@ export function ForecastView({
                       <td>{cellInput("project", row, "name", { text: true, label: "Nume proiect" })}</td>
                       <td>{cellInput("project", row, "revenue", { label: `Venituri ${p.name}` })}</td>
                       {COST_FIELDS.map((f) => (
-                        <td key={f}>{cellInput("project", row, f, { label: `${f} ${p.name}` })}</td>
+                        <td key={f}>{cellInput("project", row, f, { label: `${COST_LABEL[f]} ${p.name}` })}</td>
                       ))}
                       <td className="px-3! text-right tabular-nums">{money(costs)}</td>
                       <td className={cn("px-3! text-right font-medium tabular-nums", profit.isNegative() && "text-destructive")}>
@@ -389,7 +398,7 @@ export function ForecastView({
                 })}
                 {monthProjects.length === 0 ? (
                   <tr className="border-t">
-                    <td colSpan={9} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    <td colSpan={COST_FIELDS.length + 6} className="px-4 py-6 text-center text-sm text-muted-foreground">
                       Niciun proiect estimat în luna asta.
                     </td>
                   </tr>

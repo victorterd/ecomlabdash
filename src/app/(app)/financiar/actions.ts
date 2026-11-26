@@ -199,14 +199,16 @@ const monthDate = z.string().regex(/^\d{4}-\d{2}-01$/, "Lună invalidă");
 const label = z.string().trim().max(200);
 const amount = moneyInput.nullable().transform((v) => v ?? "0");
 
-const forecastProjectSchema = z.object({ name: label, revenue: amount, actor: amount, cameraman: amount, editor: amount }).partial();
+const forecastProjectSchema = z
+  .object({ name: label, revenue: amount, actor: amount, cameraman: amount, editor: amount, scripter: amount, sales_agent: amount })
+  .partial();
 const forecastFixedSchema = z.object({ name: label, amount }).partial();
 
 const FORECAST_TABLES = {
   project: {
     table: "forecast_projects",
     schema: forecastProjectSchema,
-    columns: "id, month, name, revenue, actor, cameraman, editor, sort_order",
+    columns: "id, month, name, revenue, actor, cameraman, editor, scripter, sales_agent, sort_order",
   },
   fixed: { table: "forecast_fixed_costs", schema: forecastFixedSchema, columns: "id, month, name, amount, sort_order" },
 } as const;
@@ -294,7 +296,19 @@ const importSchema = z
   .array(
     z.object({
       month: monthDate,
-      projects: z.array(z.object({ name: label, revenue: amount, actor: amount, cameraman: amount, editor: amount })).max(200),
+      projects: z
+        .array(
+          z.object({
+            name: label,
+            revenue: amount,
+            actor: amount,
+            cameraman: amount,
+            editor: amount,
+            scripter: amount,
+            sales_agent: amount,
+          }),
+        )
+        .max(200),
       fixedCosts: z.array(z.object({ name: label, amount })).max(200),
     }),
   )

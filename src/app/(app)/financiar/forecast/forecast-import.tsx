@@ -27,9 +27,21 @@ const MONTHS = [
 
 type ImportMonth = {
   month: string;
-  projects: { name: string; revenue: string; actor: string; cameraman: string; editor: string }[];
+  projects: Record<"name" | ProjectField, string>[];
   fixedCosts: { name: string; amount: string }[];
 };
+
+type ProjectField = "revenue" | "actor" | "cameraman" | "editor" | "scripter" | "sales_agent";
+
+/** Coloanele recunoscute după antet; fără antet potrivit, ordinea clasică Venituri, Actor, Cameraman, Editor. */
+const COLUMNS: { field: ProjectField; match: (h: string) => boolean; fallback: number | null }[] = [
+  { field: "revenue", match: (h) => h.startsWith("venit"), fallback: 1 },
+  { field: "actor", match: (h) => h.startsWith("actor"), fallback: 2 },
+  { field: "cameraman", match: (h) => h.startsWith("camera"), fallback: 3 },
+  { field: "editor", match: (h) => h.startsWith("editor") || h.startsWith("editare"), fallback: 4 },
+  { field: "scripter", match: (h) => h.startsWith("script") || h.startsWith("copywriter"), fallback: null },
+  { field: "sales_agent", match: (h) => h.includes("vanzari") || h.startsWith("sales") || h.startsWith("agent"), fallback: null },
+];
 
 type Cell = string | number | boolean | Date | null | undefined;
 
@@ -43,7 +55,7 @@ const text = (cell: Cell) => (cell === null || cell === undefined ? "" : String(
 
 /**
  * Citește formatul „Proiecție PnL”: câte o foaie pe lună (Ianuarie…Decembrie), cu tabelul
- * „Nume proiect | Venituri | Actor | Cameraman | Editor …” până la „TOTAL”,
+ * „Nume proiect | Venituri | Actor | Cameraman | Editor | Scripter | Agent vânzări …” până la „TOTAL”,
  * apoi „COSTURI FIXE” (denumire | sumă) până la „Total costuri fixe”.
  */
 export function parsePnlWorkbook(sheets: { sheet: string; data: Cell[][] }[], year: number): ImportMonth[] {
@@ -57,10 +69,19 @@ export function parsePnlWorkbook(sheets: { sheet: string; data: Cell[][] }[], ye
 
     const header = data.findIndex((row) => first(row) === "nume proiect");
     if (header >= 0) {
+      const heads = (data[header] ?? []).map((cell) => fold(text(cell)).trim());
+      const anyMatch = heads.some((h, i) => i > 0 && COLUMNS.some((c) => c.match(h)));
+      const col = Object.fromEntries(
+        COLUMNS.map((c) => {
+          const found = heads.findIndex((h, i) => i > 0 && c.match(h));
+          return [c.field, anyMatch ? (found >= 0 ? found : null) : c.fallback];
+        }),
+      ) as Record<ProjectField, number | null>;
       for (let i = header + 1; i < data.length && !first(data[i]).startsWith("total"); i++) {
         const row = data[i] ?? [];
-        const p = { name: text(row[0]), revenue: money(row[1]), actor: money(row[2]), cameraman: money(row[3]), editor: money(row[4]) };
-        if (p.name || [p.revenue, p.actor, p.cameraman, p.editor].some((v) => Number(v) > 0)) projects.push(p);
+        const p = { name: text(row[0]) } as ImportMonth["projects"][number];
+        for (const c of COLUMNS) p[c.field] = col[c.field] === null ? "0" : money(row[col[c.field]!]);
+        if (p.name || COLUMNS.some((c) => Number(p[c.field]) > 0)) projects.push(p);
       }
     }
     const fixed = data.findIndex((row) => first(row) === "costuri fixe");
